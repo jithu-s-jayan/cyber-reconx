@@ -264,8 +264,11 @@ def download_report(scan_id):
     }
     
     report_filename = f"cyberrecon_report_{scan_id}.pdf"
-    report_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'static', 'images', report_filename)
-    os.makedirs(os.path.dirname(report_path), exist_ok=True)
+    if os.environ.get('VERCEL'):
+        report_path = os.path.join('/tmp', report_filename)
+    else:
+        report_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'static', 'images', report_filename)
+        os.makedirs(os.path.dirname(report_path), exist_ok=True)
     
     generate_pdf_report(report_data, report_path)
     

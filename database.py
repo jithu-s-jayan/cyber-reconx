@@ -3,7 +3,10 @@ import os
 import time
 from werkzeug.security import generate_password_hash, check_password_hash
 
-DB_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'database', 'recon.db')
+if os.environ.get('VERCEL'):
+    DB_PATH = '/tmp/recon.db'
+else:
+    DB_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'database', 'recon.db')
 
 def init_db():
     os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
