@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Cyber ReconX — OSINT Intelligence Platform</title>
     <meta name="description" content="Premium OSINT and network intelligence platform for red teams, analysts, and security operators.">
     <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;700;800;900&family=Share+Tech+Mono&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
@@ -407,20 +407,99 @@
         .nx-footer-links a { color: rgba(255,255,255,0.3); font-size: 1.2rem; transition: color 0.3s ease; text-decoration: none; }
         .nx-footer-links a:hover { color: var(--neon-cyan); }
 
+        /* ── HAMBURGER MENU ── */
+        .nx-hamburger {
+            display: none;
+            flex-direction: column; gap: 5px;
+            cursor: pointer; padding: 4px;
+            background: none; border: none;
+        }
+        .nx-hamburger span {
+            display: block; width: 22px; height: 2px;
+            background: rgba(255,255,255,0.7); border-radius: 2px;
+            transition: all 0.3s ease;
+        }
+        .nx-hamburger.open span:nth-child(1) { transform: rotate(45deg) translate(5px, 5px); }
+        .nx-hamburger.open span:nth-child(2) { opacity: 0; }
+        .nx-hamburger.open span:nth-child(3) { transform: rotate(-45deg) translate(5px, -5px); }
+
+        /* Mobile Nav Drawer */
+        .nx-mobile-menu {
+            display: none;
+            position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(4,5,10,0.97);
+            z-index: 998; flex-direction: column;
+            align-items: center; justify-content: center; gap: 28px;
+            backdrop-filter: blur(20px);
+        }
+        .nx-mobile-menu.open { display: flex; }
+        .nx-mobile-menu .nx-link {
+            font-size: 1.2rem; letter-spacing: 2px; color: rgba(255,255,255,0.7);
+        }
+        .nx-mobile-menu .nx-cta { font-size: 1rem; padding: 14px 32px; }
+
         @media(max-width: 900px) {
-            .hero-inner { grid-template-columns: 1fr; gap: 50px; }
-            .globe-container { width: 300px; height: 300px; }
-            .nx-nav { padding: 16px 24px; }
-            .hero-wrap { padding: 90px 24px 50px; }
-            .section-wrap { padding: 70px 24px; }
-            .ethics-nx { margin: 0 24px 40px; }
-            .glow-divider { margin: 0 24px; }
+            .hero-inner { grid-template-columns: 1fr; gap: 40px; text-align: center; }
+            .hero-left { display: flex; flex-direction: column; align-items: center; }
+            .hero-sub { text-align: center; max-width: 100%; }
+            .hero-btns { justify-content: center; }
+            .hero-stats { justify-content: center; }
+            .globe-container { width: 280px; height: 280px; margin: 0 auto; }
+            .threat-tag { display: none; }
+            .nx-nav { padding: 14px 20px; }
+            .nx-links { display: none; }
+            .nx-hamburger { display: flex; }
+            .hero-wrap { padding: 80px 20px 40px; }
+            .section-wrap { padding: 60px 20px; }
+            .ethics-nx { margin: 0 20px 40px; flex-direction: column; }
+            .glow-divider { margin: 0 20px; }
+            .features-nx-grid { grid-template-columns: 1fr; }
+            .nx-footer { flex-direction: column; gap: 16px; text-align: center; padding: 24px 20px; }
+            section[id=mission] > div > div:last-child { grid-template-columns: 1fr 1fr; }
+        }
+        @media(max-width: 900px) {
+            /* Mission section 2-col override */
+            #mission > .section-wrap > div,
+            .section-wrap > div[style*='grid-template-columns'] { grid-template-columns: 1fr !important; gap: 40px !important; }
+        }
+        @media(max-width: 600px) {
+            .hero-h1 { font-size: 2rem; }
+            .globe-container { width: 220px; height: 220px; }
+            .hero-stats { gap: 16px; }
+            .h-stat-val { font-size: 1.4rem; }
+            .marquee-strip { padding: 10px 0; }
+            .hero-terminal { margin-bottom: 24px; }
+            .hero-btns { flex-direction: column; align-items: center; }
+            .btn-nx-primary, .btn-nx-outline { width: 100%; justify-content: center; }
+        }
+
+        /* Mission layout classes */
+        .mission-grid {
+            max-width: 1300px; margin: 0 auto;
+            display: grid; grid-template-columns: 1fr 1fr;
+            gap: 80px; align-items: center;
+        }
+        .stats-mini-grid {
+            display: grid; grid-template-columns: 1fr 1fr; gap: 16px;
+        }
+        @media(max-width: 900px) {
+            .mission-grid { grid-template-columns: 1fr !important; gap: 40px !important; }
+        }
+        @media(max-width: 480px) {
+            .stats-mini-grid { grid-template-columns: 1fr 1fr !important; gap: 10px !important; }
         }
     </style>
 </head>
 <body class="landing-body">
     <canvas id="particleCanvas"></canvas>
     <div class="hex-overlay"></div>
+
+    <!-- Mobile Menu Overlay -->
+    <div class="nx-mobile-menu" id="mobileMenu">
+        <a href="#mission" class="nx-link" onclick="closeMobileMenu()">MISSION</a>
+        <a href="#protocols" class="nx-link" onclick="closeMobileMenu()">PROTOCOLS</a>
+        <a href="/login" class="nx-link nx-cta" style="margin-top:8px;"><i class="fa-solid fa-terminal"></i> LAUNCH RECON</a>
+    </div>
 
     <!-- Navbar -->
     <nav class="nx-nav" id="mainNav">
@@ -433,6 +512,9 @@
             <a href="#protocols" class="nx-link">PROTOCOLS</a>
             <a href="/login" class="nx-link nx-cta"><i class="fa-solid fa-terminal"></i> LAUNCH RECON</a>
         </div>
+        <button class="nx-hamburger" id="hamburger" onclick="toggleMobileMenu()">
+            <span></span><span></span><span></span>
+        </button>
     </nav>
 
     <!-- Hero Section -->
@@ -567,7 +649,7 @@
 
     <!-- About / Mission -->
     <section class="section-wrap" id="mission">
-        <div style="max-width:1300px;margin:0 auto;display:grid;grid-template-columns:1fr 1fr;gap:80px;align-items:center;">
+        <div class="mission-grid">
             <div>
                 <span class="section-label">// INTELLIGENCE MISSION</span>
                 <h2 class="section-h">BUILT FOR OPERATORS,<br>NOT SCRIPTS</h2>
@@ -582,7 +664,7 @@
                     <span style="background:rgba(255,214,10,0.07);border:1px solid rgba(255,214,10,0.2);padding:7px 18px;border-radius:50px;font-family:'Orbitron',sans-serif;font-size:0.7rem;color:#ffd60a;letter-spacing:1px;"><i class="fa-solid fa-shield"></i> AES-256 Auth</span>
                 </div>
             </div>
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+            <div class="stats-mini-grid">
                 <div style="background:var(--dark-card);border:1px solid rgba(0,245,255,0.1);border-radius:12px;padding:24px;text-align:center;">
                     <div style="font-family:'Orbitron',sans-serif;font-size:2.2rem;font-weight:800;color:var(--neon-cyan);text-shadow:0 0 20px rgba(0,245,255,0.4);">8+</div>
                     <div style="font-size:0.75rem;color:rgba(255,255,255,0.35);margin-top:4px;letter-spacing:1px;">PLATFORMS TRACKED</div>
@@ -819,10 +901,30 @@
         });
     })();
 
-    // ─── NAVBAR SCROLL ───
+    // ── NAVBAR SCROLL ──
     window.addEventListener('scroll', () => {
         document.getElementById('mainNav').classList.toggle('scrolled', window.scrollY > 60);
     });
+
+    // ── MOBILE MENU ──
+    function toggleMobileMenu() {
+        const menu = document.getElementById('mobileMenu');
+        const btn = document.getElementById('hamburger');
+        const isOpen = menu.classList.toggle('open');
+        btn.classList.toggle('open', isOpen);
+        document.body.style.overflow = isOpen ? 'hidden' : '';
+    }
+    function closeMobileMenu() {
+        document.getElementById('mobileMenu').classList.remove('open');
+        document.getElementById('hamburger').classList.remove('open');
+        document.body.style.overflow = '';
+    }
+    // Close mobile menu on hash link click
+    document.querySelectorAll('a[href^="#"]').forEach(a => {
+        a.addEventListener('click', closeMobileMenu);
+    });
+    // Back button support — history is native for anchor nav
+    window.addEventListener('popstate', () => { closeMobileMenu(); });
     </script>
 </body>
 </html>

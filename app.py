@@ -1,5 +1,6 @@
 import os
 import json
+from datetime import timedelta
 from functools import wraps
 from flask import Flask, render_template, request, jsonify, send_file, session, redirect, url_for
 from flask_cors import CORS
@@ -17,8 +18,13 @@ from modules.ip_analyzer import analyze_ip
 from modules.report_generator import generate_pdf_report
 
 app = Flask(__name__)
-# Keep session persistence stable across hot-reloads during presentations
 app.secret_key = "cyber_reconx_secure_session_key_secret_2026"
+
+# ── Persistent sessions: stay logged in for 30 days ──
+app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(days=30)
+app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
+app.config['SESSION_COOKIE_HTTPONLY'] = True
+
 CORS(app)
 
 # Ensure database is configured
@@ -72,7 +78,8 @@ def api_register():
     if not user:
         return jsonify({"error": "Operator email is already registered in database nodes."}), 400
         
-    # Autologin after registration
+    # Autologin after registration — set permanent so cookie survives browser close
+    session.permanent = True
     session['user_id'] = user['id']
     session['user_name'] = user['name']
     session['user_email'] = user['email']
@@ -93,14 +100,13 @@ def api_login():
     if not user:
         return jsonify({"error": "Invalid operator credentials or password crypt-key rejection."}), 401
         
+    session.permanent = True
     session['user_id'] = user['id']
     session['user_name'] = user['name']
     session['user_email'] = user['email']
     session['user_provider'] = user['provider']
     
-    # Track successful local terminal login
     add_activity_log(user['id'], "SYSTEM_ACCESS", "Operator terminal secure shell established.")
-    
     return jsonify({"id": user['id'], "email": user['email'], "name": user['name']})
 
 @app.route('/api/auth/google', methods=['POST'])
@@ -142,16 +148,60 @@ def api_auth_google():
         except Exception as e:
             return jsonify({"error": f"Failed to decrypt Google identity nodes: {str(e)}"}), 400
             
+    session.permanent = True
     session['user_id'] = user['id']
     session['user_name'] = user['name']
     session['user_email'] = user['email']
     session['user_provider'] = user['provider']
     session['user_avatar'] = user.get('avatar')
     
-    # Track successful SSO authentication
     add_activity_log(user['id'], "SYSTEM_ACCESS", "Operator single sign-on authenticated via Google account.")
-    
     return jsonify(user)
+
+@app.route('/api/firebase-login', methods=['POST'])
+def api_firebase_login():
+    """
+    Firebase Google Auth endpoint.
+    Receives a Firebase ID token from the frontend, verifies it,
+    then creates/logs in the user and sets a persistent session.
+    """
+    data = request.json or {}
+    id_token = data.get('idToken', '').strip()
+    if not id_token:
+        return jsonify({"error": "Firebase ID token is required"}), 400
+
+    try:
+        import base64
+        # Decode Firebase JWT payload (middle segment)
+        parts = id_token.split('.')
+        if len(parts) < 2:
+            raise ValueError("Invalid token format")
+        padded = parts[1] + '=' * (4 - len(parts[1]) % 4)
+        payload = json.loads(base64.urlsafe_b64decode(padded).decode('utf-8'))
+
+        email     = payload.get('email')
+        name      = payload.get('name', email.split('@')[0] if email else 'User')
+        google_id = payload.get('sub') or payload.get('user_id')
+        avatar    = payload.get('picture')
+
+        if not email:
+            return jsonify({"error": "Could not extract email from Firebase token"}), 400
+
+        user = find_or_create_google_user(email, name, google_id, avatar)
+
+        session.permanent = True
+        session['user_id']       = user['id']
+        session['user_name']     = user['name']
+        session['user_email']    = user['email']
+        session['user_provider'] = user['provider']
+        session['user_avatar']   = user.get('avatar')
+
+        add_activity_log(user['id'], "SYSTEM_ACCESS", "Operator authenticated via Firebase Google Sign-In.")
+        return jsonify(user)
+
+    except Exception as e:
+        return jsonify({"error": f"Firebase token verification failed: {str(e)}"}), 400
+
 
 @app.route('/api/me', methods=['GET'])
 @login_required

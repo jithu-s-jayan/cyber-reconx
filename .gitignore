@@ -36,6 +36,10 @@ logs/
 Thumbs.db
 desktop.ini
 
+# Firebase private keys (NEVER commit these)
+firebase-service-account.json
+*-service-account.json
+
 # IDE
 .vscode/
 .idea/

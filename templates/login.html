@@ -2,12 +2,14 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Cyber ReconX — System Authorization</title>
     <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;700;800;900&family=Share+Tech+Mono&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="/static/css/style.css">
     <script src="https://accounts.google.com/gsi/client" async defer></script>
+    <!-- Firebase SDK (modular, loaded as compat for simplicity) -->
+    <script src="/static/js/firebase-config.js"></script>
     <style>
         :root {
             --neon-cyan: #00f5ff;
@@ -340,6 +342,35 @@
 
         .hidden { display: none !important; }
         @media(max-width: 800px) { .auth-left { display: none; } }
+
+        /* ── MOBILE OVERRIDES ── */
+        @media(max-width: 768px) {
+            .auth-header { padding: 14px 20px; }
+            .auth-layout {
+                padding: 20px 16px;
+                align-items: flex-start;
+                padding-top: 24px;
+            }
+            .auth-card {
+                max-width: 100%;
+                border-radius: 16px;
+            }
+            .auth-body { padding: 20px 18px; }
+            .bio-row { gap: 12px; padding: 12px 14px; }
+            .bio-pad { width: 52px; height: 52px; }
+            .bio-pad svg { width: 26px; height: 26px; }
+            .form-field input { padding: 13px 13px 13px 40px; font-size: 16px; /* prevent iOS zoom */ }
+            .auth-submit { padding: 15px; font-size: 0.8rem; }
+            .google-btn { padding: 13px; font-size: 0.82rem; }
+            .auth-terminal-body { height: 70px; font-size: 0.68rem; }
+            .auth-tab { padding: 13px 8px; font-size: 0.65rem; }
+            .scanline { display: none; } /* save battery on mobile */
+        }
+        @media(max-width: 380px) {
+            .auth-logo-text { font-size: 0.9rem; }
+            .bio-title { font-size: 0.7rem; }
+            .bio-status { font-size: 0.62rem; }
+        }
     </style>
 </head>
 <body>
@@ -468,14 +499,10 @@
                 <!-- Divider -->
                 <div class="auth-divider">OR CONTINUE WITH</div>
 
-                <!-- Google -->
-                <button class="google-btn" onclick="simulateGoogle()">
+                <!-- Google Firebase Sign-In -->
+                <button class="google-btn" id="googleSignInBtn" onclick="firebaseGoogleLogin()">
                     <i class="fa-brands fa-google"></i> GOOGLE SINGLE SIGN-ON
                 </button>
-                <div id="g_id_onload" data-client_id="YOUR_GOOGLE_CLIENT_ID.apps.googleusercontent.com"
-                     data-context="signin" data-ux_mode="popup"
-                     data-callback="handleGoogleCredentialResponse" data-auto_prompt="false"
-                     style="display:none;"></div>
 
                 <!-- Live Terminal -->
                 <div class="auth-terminal">
@@ -601,22 +628,79 @@
         }).catch(()=>log('ERR','Registration node unreachable.','r'));
     }
 
-    // ── GOOGLE ──
-    function handleGoogleCredentialResponse(response){
-        log('SEC','Validating Google auth payload...','c');
-        fetch('/api/auth/google',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({credential:response.credential})})
-        .then(r=>r.json()).then(data=>{
-            if(data.error) log('ERR',data.error,'r');
-            else{ log('SYS',`Authorized: ${data.name}! Redirecting...`,'g'); setTimeout(()=>window.location.href='/dashboard',900); }
+    // ── FIREBASE GOOGLE SIGN-IN ────────────────────────────────
+    // Dynamically load Firebase SDK and sign in with popup
+    let _firebaseInitialized = false;
+
+    async function firebaseGoogleLogin() {
+        const btn = document.getElementById('googleSignInBtn');
+        if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Connecting...'; }
+        log('SEC', 'Initialising Firebase Google Sign-In...', 'c');
+
+        const cfg = window.FIREBASE_CONFIG;
+        if (!cfg || cfg.apiKey === 'YOUR_API_KEY') {
+            log('ERR', 'Firebase not configured. Open static/js/firebase-config.js and add your project keys.', 'r');
+            if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fa-brands fa-google"></i> GOOGLE SINGLE SIGN-ON'; }
+            alert('Firebase is not configured yet.\n\nOpen: static/js/firebase-config.js\nPaste your Firebase project config there.');
+            return;
+        }
+
+        try {
+            // Dynamically load Firebase SDK
+            if (!_firebaseInitialized) {
+                await loadScript('https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js');
+                await loadScript('https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js');
+                firebase.initializeApp(cfg);
+                _firebaseInitialized = true;
+            }
+
+            const provider = new firebase.auth.GoogleAuthProvider();
+            provider.addScope('email');
+            provider.addScope('profile');
+
+            const result = await firebase.auth().signInWithPopup(provider);
+            const idToken = await result.user.getIdToken();
+
+            log('SEC', `Google auth success: ${result.user.email}`, 'g');
+            log('SEC', 'Sending token to server...', 'c');
+
+            const res = await fetch('/api/firebase-login', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ idToken })
+            });
+            const data = await res.json();
+
+            if (data.error) {
+                log('ERR', data.error, 'r');
+                if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fa-brands fa-google"></i> GOOGLE SINGLE SIGN-ON'; }
+            } else {
+                log('SYS', `Authorized: ${data.name}! Launching command center...`, 'g');
+                setTimeout(() => window.location.href = '/dashboard', 900);
+            }
+        } catch (err) {
+            log('ERR', `Google sign-in failed: ${err.message}`, 'r');
+            if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fa-brands fa-google"></i> GOOGLE SINGLE SIGN-ON'; }
+        }
+    }
+
+    function loadScript(src) {
+        return new Promise((resolve, reject) => {
+            if (document.querySelector(`script[src="${src}"]`)) { resolve(); return; }
+            const s = document.createElement('script');
+            s.src = src; s.onload = resolve; s.onerror = reject;
+            document.head.appendChild(s);
         });
     }
-    function simulateGoogle(){
-        const email=prompt('Google sandbox — enter email:','recon.operator@gmail.com');
-        if(!email){ log('ERR','Google auth aborted.','r'); return; }
-        log('SEC','Simulating Google OAuth handshake...','c');
-        fetch('/api/auth/google',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({simulated:true,email,name:email.split('@')[0].replace(/[._]/g,' ').toUpperCase()})})
-        .then(r=>r.json()).then(data=>{ log('SYS',`Google authorized: ${data.name}! Redirecting...`,'g'); setTimeout(()=>window.location.href='/dashboard',900); })
-        .catch(()=>log('ERR','Google sandbox failed.','r'));
+
+    // Legacy Google credential handler (kept for compatibility)
+    function handleGoogleCredentialResponse(response) {
+        log('SEC', 'Validating Google auth payload...', 'c');
+        fetch('/api/auth/google', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ credential: response.credential }) })
+        .then(r => r.json()).then(data => {
+            if (data.error) log('ERR', data.error, 'r');
+            else { log('SYS', `Authorized: ${data.name}! Redirecting...`, 'g'); setTimeout(() => window.location.href = '/dashboard', 900); }
+        });
     }
 
     // ── INPUT LIVE LOGS ──
