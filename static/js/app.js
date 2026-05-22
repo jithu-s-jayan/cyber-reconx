@@ -30,7 +30,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     // Restore tab from URL hash on page load (e.g. /dashboard#username)
     const hash = window.location.hash.replace('#', '');
-    const validTabs = ['home', 'domain', 'username', 'network', 'ip-intel', 'image-intel', 'history'];
+    const validTabs = ['home', 'domain', 'username', 'network', 'ip-intel', 'image', 'history'];
     if (hash && validTabs.includes(hash)) {
         _activateTab(hash, false); // false = don't push state again
     }
@@ -163,13 +163,17 @@ function loadScanHistory() {
             data.forEach(scan => {
                 const dateStr = new Date(scan.timestamp * 1000).toLocaleString();
                 const scoreColor = scan.threat_level === "High" ? "text-red" : scan.threat_level === "Medium" ? "text-yellow" : "text-green";
+                let badgeClass = "badge-info";
+                if (scan.threat_level === "High") badgeClass = "badge-danger";
+                else if (scan.threat_level === "Medium") badgeClass = "badge-warning";
+                
                 tbody.innerHTML += `
                     <tr>
-                        <td>${dateStr}</td>
-                        <td><span class="tag">${scan.scan_type}</span></td>
                         <td class="text-white font-weight-bold">${scan.target}</td>
-                        <td><span class="${scoreColor} font-weight-bold">${scan.threat_score}%</span></td>
-                        <td><span class="${scoreColor} font-weight-bold">${scan.threat_level}</span></td>
+                        <td><span class="badge ${badgeClass}">${scan.scan_type}</span></td>
+                        <td class="mono-text" style="font-size:0.82rem;">${dateStr}</td>
+                        <td><span class="badge ${badgeClass}">${scan.threat_level} (${scan.threat_score}%)</span></td>
+                        <td class="text-white" style="font-size:0.82rem; max-width: 350px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${scan.summary || ''}">${scan.summary || '-'}</td>
                         <td><a href="/api/report/${scan.id}" class="btn btn-secondary border-cyan btn-sm"><i class="fa-solid fa-download"></i> PDF REPORT</a></td>
                     </tr>`;
             });
@@ -184,7 +188,7 @@ const SECTION_TITLES = {
     username:  "Identity Footprint Discovery Module",
     network:   "TCP Port Sweeper & Scanner Module",
     "ip-intel": "IP Geolocation & Threat Diagnostics",
-    "image-intel": "AI-Powered Reverse Image Investigation Module",
+    "image":   "AI-Powered Reverse Image Investigation Module",
     history:   "Security Records Database"
 };
 
@@ -395,6 +399,8 @@ function setupFormHandlers() {
     const filenameTxt = document.getElementById("preview-filename-txt");
     const filesizeTxt = document.getElementById("preview-filesize-txt");
     
+    let currentSelectedFile = null;
+    
     if (dropZone && fileInput) {
         // Trigger click event on dropZone to open file dialog
         dropZone.addEventListener("click", () => {
@@ -418,7 +424,7 @@ function setupFormHandlers() {
             dropZone.classList.remove("dragover");
             const files = e.dataTransfer.files;
             if (files.length > 0) {
-                fileInput.files = files;
+                currentSelectedFile = files[0];
                 handleFileSelect(files[0]);
             }
         });
@@ -426,6 +432,7 @@ function setupFormHandlers() {
         // Handle native file selection
         fileInput.addEventListener("change", () => {
             if (fileInput.files.length > 0) {
+                currentSelectedFile = fileInput.files[0];
                 handleFileSelect(fileInput.files[0]);
             }
         });
@@ -433,6 +440,13 @@ function setupFormHandlers() {
     
     function handleFileSelect(file) {
         if (!file) return;
+        
+        // Reset and clear any previous validation failures
+        const errorMsg = document.getElementById("dropzone-error-msg");
+        if (errorMsg) {
+            errorMsg.remove();
+        }
+        dropZone.classList.remove("pulse-red-border", "wiggle");
         
         const ext = file.name.split('.').pop().toLowerCase();
         const allowed = ['jpg', 'jpeg', 'png', 'webp'];
@@ -456,6 +470,7 @@ function setupFormHandlers() {
     if (resetBtn) {
         resetBtn.addEventListener("click", () => {
             imageForm.reset();
+            currentSelectedFile = null;
             dropZone.classList.remove("hidden");
             uploadArea.classList.add("hidden");
             previewImg.src = "";
@@ -467,8 +482,29 @@ function setupFormHandlers() {
     if (imageForm) {
         imageForm.addEventListener("submit", (e) => {
             e.preventDefault();
-            const file = fileInput.files[0];
-            if (!file) return;
+            const file = currentSelectedFile || fileInput.files[0];
+            if (!file) {
+                // Pulse drop zone neon-red, play wiggle animation, and show error log in drop zone
+                dropZone.classList.add("pulse-red-border", "wiggle");
+                let validationError = document.getElementById("dropzone-error-msg");
+                if (!validationError) {
+                    validationError = document.createElement("p");
+                    validationError.id = "dropzone-error-msg";
+                    validationError.style.color = "var(--neon-red)";
+                    validationError.style.marginTop = "15px";
+                    validationError.style.fontFamily = "'JetBrains Mono', monospace";
+                    validationError.style.fontSize = "0.85rem";
+                    validationError.style.fontWeight = "bold";
+                    dropZone.appendChild(validationError);
+                }
+                validationError.textContent = "* ERROR: Target visual node payload not loaded. Please select or drop an image file first. *";
+                
+                // Clear wiggle animation class after it completes so it can be re-triggered
+                setTimeout(() => {
+                    dropZone.classList.remove("wiggle");
+                }, 800);
+                return;
+            }
             
             const loader = document.getElementById("image-loader");
             const area = document.getElementById("image-results-area");
@@ -659,135 +695,287 @@ function renderIpResults(data) {
 }
 
 function renderImageResults(data) {
-    const thumbImg = document.getElementById("res-image-thumb");
-    if (thumbImg) thumbImg.src = data.image_url || "";
-    
-    setText("res-image-filename", data.filename || "payload.jpg");
-    setText("res-image-hash", data.fingerprint || "0000000000000000");
-    setText("res-image-duration", data.duration !== undefined ? data.duration.toFixed(3) : "0.000");
-    
-    const threatBadge = document.getElementById("res-image-threat-badge");
-    const threatScore = document.getElementById("res-image-threat-score");
-    if (threatBadge) {
-        threatBadge.textContent = data.threat_level || "LOW";
-        setBadgeColor(threatBadge, data.threat_level);
-    }
-    if (threatScore) threatScore.textContent = (data.threat_score || 0) + "%";
-    
-    const intelBadge = document.getElementById("res-image-intel-badge");
-    const intelScore = document.getElementById("res-image-intel-score");
-    if (intelBadge) {
-        const iScore = data.intelligence_score || 0;
-        let intelLevel = "EXCELLENT";
-        if (iScore < 45) intelLevel = "CRITICAL";
-        else if (iScore < 70) intelLevel = "FAIR";
-        
-        intelBadge.textContent = intelLevel;
-        intelBadge.className = "threat-score-badge";
-        if (intelLevel === "CRITICAL") intelBadge.classList.add("bg-red");
-        else if (intelLevel === "FAIR") intelBadge.classList.add("bg-yellow");
-        else intelBadge.classList.add("bg-cyan");
-    }
-    if (intelScore) intelScore.textContent = (data.intelligence_score || 0) + "%";
-    
-    const gpsAlert = document.getElementById("gps-exposure-alert");
-    const gpsAlertText = document.getElementById("gps-alert-text");
-    if (gpsAlert) {
-        if (data.metadata && data.metadata.gps_latitude !== null) {
-            gpsAlert.classList.remove("hidden");
+    try {
+        // ── Basic file parameters ──
+        setText("res-image-filename", data.filename || "TARGET_ASSET.JPG");
+
+        const meta = data.metadata || {};
+        setText("res-image-dimensions", meta.resolution || "Unknown");
+        setText("res-image-duration", data.duration || "0.000");
+
+        // ── Threat badge & score ──
+        const badge = document.getElementById("res-image-badge");
+        const score = document.getElementById("res-image-score");
+        if (badge) { badge.textContent = (data.threat_level || "LOW").toUpperCase(); setBadgeColor(badge, data.threat_level); }
+        if (score) score.textContent = (data.threat_score || 0) + "%";
+
+        // ── OPSEC quality index ──
+        const intelBadge = document.getElementById("res-image-intel-badge");
+        const intelScore = document.getElementById("res-image-intel-score");
+        const opsecScore = data.intelligence_score || 100;
+        let opsecLevel = "EXCELLENT";
+        if (opsecScore < 50) opsecLevel = "CRITICAL";
+        else if (opsecScore < 80) opsecLevel = "MODERATE";
+        if (intelBadge) {
+            intelBadge.textContent = opsecLevel;
+            intelBadge.className = "badge";
+            if (opsecLevel === "EXCELLENT") intelBadge.classList.add("badge-info");
+            else if (opsecLevel === "MODERATE") intelBadge.classList.add("badge-warning");
+            else intelBadge.classList.add("badge-danger");
+        }
+        if (intelScore) intelScore.textContent = opsecScore + "%";
+
+        // ── Image preview ──
+        const previewImg = document.getElementById("res-image-preview");
+        if (previewImg) {
+            previewImg.src = data.image_url || "";
+            previewImg.onerror = () => {
+                previewImg.src = "https://images.unsplash.com/photo-1558494949-ef010cbdcc31?auto=format&fit=crop&w=600&q=80";
+            };
+        }
+
+        // ── File details ──
+        setText("res-image-hash", data.fingerprint || "-");
+        setText("res-image-format", meta.format || "-");
+        setText("res-image-size", meta.file_size || "-");
+        setText("res-image-mode", meta.mode || "-");
+
+        // ── EXIF Hardware ──
+        setText("res-exif-make", meta.camera_make || "-");
+        setText("res-exif-model", meta.camera_model || "-");
+        setText("res-exif-date", meta.timestamp || "-");
+        setText("res-exif-software", meta.software || "-");
+        setText("res-exif-fnumber", meta.f_number || "-");
+        setText("res-exif-shutter", meta.exposure_time || "-");
+        setText("res-exif-iso", meta.iso || "-");
+
+        // ── GPS coordinates ──
+        const coordsText = document.getElementById("res-gps-coords");
+        const gpsLinkBtn = document.getElementById("res-gps-link");
+        const gpsNoLinkSpan = document.getElementById("res-gps-nolink");
+        const gpsAlertPane = document.getElementById("gps-exposure-alert");
+        const gpsAlertText = document.getElementById("gps-alert-text");
+
+        const parsedLat = parseFloat(meta.gps_latitude);
+        const parsedLon = parseFloat(meta.gps_longitude);
+
+        if (meta.gps_latitude !== null && meta.gps_longitude !== null &&
+            meta.gps_latitude !== undefined && meta.gps_longitude !== undefined &&
+            !isNaN(parsedLat) && !isNaN(parsedLon)) {
+            const coordsStr = `${parsedLat.toFixed(5)}, ${parsedLon.toFixed(5)}`;
+            if (coordsText) coordsText.textContent = coordsStr;
+            if (gpsLinkBtn) {
+                gpsLinkBtn.href = `https://www.google.com/maps/search/?api=1&query=${parsedLat},${parsedLon}`;
+                gpsLinkBtn.classList.remove("hidden");
+            }
+            if (gpsNoLinkSpan) gpsNoLinkSpan.classList.add("hidden");
+            if (gpsAlertPane) gpsAlertPane.classList.remove("hidden");
             if (gpsAlertText) {
-                gpsAlertText.innerHTML = `<i class="fa-solid fa-triangle-exclamation"></i> <strong>CRITICAL OPSEC TELEMETRY EXPOSURE:</strong> Active GPS coordinates detected inside image headers (${data.metadata.gps_coords}). Physical location exposure hazard mapped.`;
+                gpsAlertText.textContent = `Visual asset contains embedded GPS coordinates [${coordsStr}]. This exposes the exact physical location where the image was captured — critical OPSEC vulnerability.`;
             }
         } else {
-            gpsAlert.classList.add("hidden");
+            if (coordsText) coordsText.textContent = "N/A";
+            if (gpsLinkBtn) { gpsLinkBtn.href = "#"; gpsLinkBtn.classList.add("hidden"); }
+            if (gpsNoLinkSpan) gpsNoLinkSpan.classList.remove("hidden");
+            if (gpsAlertPane) gpsAlertPane.classList.add("hidden");
         }
-    }
-    
-    if (data.metadata) {
-        setText("res-exif-make", data.metadata.camera_make || "N/A");
-        setText("res-exif-model", data.metadata.camera_model || "N/A");
-        setText("res-exif-date", data.metadata.timestamp || "N/A");
-        setText("res-exif-software", data.metadata.software || "N/A");
-        setText("res-exif-fnumber", data.metadata.f_number || "N/A");
-        setText("res-exif-shutter", data.metadata.exposure_time || "N/A");
-        setText("res-exif-iso", data.metadata.iso || "N/A");
-        
-        setText("res-file-size", data.metadata.file_size || "N/A");
-        setText("res-file-dimensions", data.metadata.resolution || "N/A");
-        setText("res-file-format", data.metadata.format || "N/A");
-        setText("res-file-mode", data.metadata.mode || "N/A");
-        setText("res-gps-coords", data.metadata.gps_coords || "N/A");
-        
-        const gpsLink = document.getElementById("res-gps-link");
-        const gpsNoLink = document.getElementById("res-gps-nolink");
-        if (data.metadata.gps_latitude !== null && data.metadata.gps_longitude !== null) {
-            if (gpsLink) {
-                gpsLink.href = `https://www.google.com/maps/search/?api=1&query=${data.metadata.gps_latitude},${data.metadata.gps_longitude}`;
-                gpsLink.classList.remove("hidden");
-            }
-            if (gpsNoLink) gpsNoLink.classList.add("hidden");
-        } else {
-            if (gpsLink) gpsLink.classList.add("hidden");
-            if (gpsNoLink) gpsNoLink.classList.remove("hidden");
-        }
-    }
-    
-    const matchList = document.getElementById("res-match-list");
-    if (matchList) {
+
+        // ─────────────────────────────────────────────────────────────────
+        // ── MATCHES / SOURCES PANEL ──
+        // ─────────────────────────────────────────────────────────────────
+        const matchList = document.getElementById("res-image-mentions");
+        if (!matchList) return;
+
         matchList.innerHTML = "";
-        if (!data.matches || data.matches.length === 0) {
-            matchList.innerHTML = `<div class="text-center share-tech-mono" style="padding:15px; color:rgba(255,255,255,0.3);">No visual similarities resolved in public datasets.</div>`;
+        let html = "";
+
+        const lensUrl = data.lens_url || null;
+        const subjectGuess = data.subject_guess || null;
+        const personInfo = data.person_info || null;
+        const hasRealResults = data.has_real_results || false;
+        const matches = data.matches || [];
+
+        // ── Google Lens CTA Banner (always shown at top) ──
+        if (lensUrl) {
+            html += `
+            <div class="lens-cta-banner">
+                <div class="lens-cta-left">
+                    <i class="fa-brands fa-google" style="font-size:1.8rem; background: linear-gradient(135deg,#4285F4,#EA4335,#FBBC05,#34A853); -webkit-background-clip:text; -webkit-text-fill-color:transparent;"></i>
+                    <div>
+                        <div class="lens-cta-title">Live Visual Index Search</div>
+                        <div class="lens-cta-sub">View all matching sources, similar images, and web presence for this exact image</div>
+                    </div>
+                </div>
+                <a href="${lensUrl}" target="_blank" rel="noopener noreferrer" class="btn btn-primary btn-glow" style="white-space:nowrap; font-size:0.8rem; padding:10px 20px;">
+                    <i class="fa-solid fa-arrow-up-right-from-square"></i> View Similar Images
+                </a>
+            </div>`;
+        }
+
+        // ── Subject / Person Identification Banner ──
+        if (subjectGuess || personInfo) {
+            const displayName = personInfo ? personInfo.name : subjectGuess;
+            const displayDesc = personInfo ? personInfo.description : `Google identified this image as: "${subjectGuess}"`;
+
+            html += `
+            <div class="subject-id-banner">
+                <div class="subject-id-icon">
+                    <i class="fa-solid ${personInfo ? 'fa-user-check' : 'fa-magnifying-glass-chart'}" style="font-size:1.5rem;"></i>
+                </div>
+                <div class="subject-id-info">
+                    <div class="subject-id-label">${personInfo ? '👤 PERSON IDENTIFIED' : '🔍 SUBJECT IDENTIFIED'}</div>
+                    <div class="subject-id-name">${displayName}</div>
+                    ${displayDesc ? `<div class="subject-id-desc">${displayDesc}</div>` : ''}
+                </div>
+                ${lensUrl ? `<a href="https://www.google.com/search?q=${encodeURIComponent(displayName)}" target="_blank" rel="noopener noreferrer" class="btn btn-secondary btn-sm" style="white-space:nowrap; font-size:0.75rem;"><i class="fa-solid fa-magnifying-glass"></i> Search "${displayName}"</a>` : ''}
+            </div>`;
+        }
+
+        // ── Divider: Source Intelligence ──
+        html += `
+        <div class="similar-matches-divider" style="margin: 20px 0 16px 0;">
+            <span class="divider-line"></span>
+            <span class="divider-text"><i class="fa-solid fa-fingerprint"></i> IMAGE SOURCE INTELLIGENCE</span>
+            <span class="divider-line"></span>
+        </div>`;
+
+        if (!hasRealResults && matches.length === 1 && matches[0].domain === "lens.google.com") {
+            // ── No parsed results: show clean fallback ──
+            html += `
+            <div class="no-results-panel">
+                <i class="fa-solid fa-circle-info text-cyan" style="font-size:2rem; margin-bottom:12px;"></i>
+                <h4 style="color:#fff; margin-bottom:8px; font-family:'Orbitron',sans-serif; font-size:1rem;">Real-Time Visual Search Results</h4>
+                <p style="color:var(--text-muted); font-size:0.85rem; line-height:1.6; max-width:600px; margin:0 auto 16px;">
+                    Google's anti-bot protections blocked direct scraping of visual matches for this image session. 
+                    Click the <strong style="color:var(--neon-cyan);">View Similar Images</strong> button above to view all real similar images, 
+                    source pages, and exact matches directly on Google.
+                </p>
+                ${lensUrl ? `<a href="${lensUrl}" target="_blank" rel="noopener noreferrer" class="btn btn-primary btn-glow" style="font-size:0.85rem;"><i class="fa-brands fa-google"></i> View Complete Index Results</a>` : ''}
+            </div>`;
         } else {
-            data.matches.forEach(m => {
-                const badgeClass = m.match_type === "Exact Match" 
-                    ? "match-type-exact" 
-                    : m.match_type === "High Similarity" 
-                        ? "match-type-high" 
+            // ── Show real parsed matches ──
+            const originalSource = matches.find(m => m.category === "Possible Original Source");
+            const otherMatches = matches.filter(m => m.category !== "Possible Original Source");
+
+            // Original Source Spotlight Card
+            if (originalSource) {
+                const conf = originalSource.confidence || 95;
+                const hasThumb = originalSource.thumbnail && (originalSource.thumbnail.startsWith("http") || originalSource.thumbnail.startsWith("data:"));
+
+                html += `
+                <div class="spotlight-card">
+                    <div class="spotlight-glow-border"></div>
+                    <div class="spotlight-badge-container">
+                        <span class="spotlight-badge"><i class="fa-solid fa-circle-check text-green"></i> ORIGINAL SOURCE — REAL MATCH</span>
+                        <span class="match-type-badge match-type-exact">${(originalSource.match_type || "EXACT").toUpperCase()}</span>
+                    </div>
+                    <div class="spotlight-body">
+                        <div class="spotlight-left">
+                            ${hasThumb ? `
+                            <div class="spotlight-thumb-wrapper">
+                                <img class="spotlight-thumb-img" src="${originalSource.thumbnail}" alt="${originalSource.source_name}" 
+                                     onerror="this.parentElement.style.display='none'">
+                                <div class="spotlight-thumb-scan"></div>
+                            </div>` : ''}
+                            <div class="spotlight-info">
+                                <h3 class="spotlight-title" style="font-size:1rem; word-break:break-word;">${originalSource.source_name || originalSource.domain}</h3>
+                                <p class="spotlight-summary">${originalSource.summary || ""}</p>
+                                <div class="spotlight-meta">
+                                    <span><i class="fa-solid fa-globe text-cyan"></i> <strong style="color:#fff;">${originalSource.domain}</strong></span>
+                                    <span><i class="fa-solid fa-calendar-days text-purple"></i> ${originalSource.timestamp || "-"}</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="spotlight-right">
+                            <div class="match-confidence-container">
+                                <div class="match-confidence-txt">Source Confidence: <span class="text-green" style="font-weight:800;">${conf}%</span></div>
+                                <div class="match-bar-container"><div class="match-bar-fill bg-green-fill" style="width:${conf}%"></div></div>
+                            </div>
+                            <div style="margin-top:12px; display:flex; flex-direction:column; gap:8px;">
+                                <a href="${originalSource.url}" target="_blank" rel="noopener noreferrer" 
+                                   class="btn btn-primary btn-glow spotlight-action-btn" 
+                                   style="font-size:0.78rem; padding:10px 14px; display:flex; align-items:center; justify-content:center; gap:6px; width:100%;">
+                                    <i class="fa-solid fa-arrow-up-right-from-square"></i> Visit Source Page
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                    ${originalSource.recon_suggestion ? `
+                    <div class="spotlight-recon-suggestion">
+                        <div class="spotlight-suggestion-label"><i class="fa-solid fa-lightbulb"></i> ORIGINAL SOURCE RECON ANALYSIS</div>
+                        <div class="spotlight-suggestion-text">${originalSource.recon_suggestion}</div>
+                    </div>` : ""}
+                </div>`;
+            }
+
+            // Similar / Related Matches Grid
+            if (otherMatches.length > 0) {
+                html += `
+                <div class="similar-matches-divider">
+                    <span class="divider-line"></span>
+                    <span class="divider-text"><i class="fa-solid fa-clone"></i> SIMILAR IMAGES & WEB DISTRIBUTION</span>
+                    <span class="divider-line"></span>
+                </div>
+                <div class="similar-matches-grid">`;
+
+                otherMatches.forEach(m => {
+                    const conf = m.confidence || 50;
+                    const badgeClass = (m.match_type || "").toLowerCase().includes("high") ? "match-type-high"
+                        : (m.match_type || "").toLowerCase().includes("exact") ? "match-type-exact"
                         : "match-type-partial";
-                        
-                const fillClass = m.match_type === "Exact Match"
-                    ? "bg-green-fill"
-                    : m.match_type === "High Similarity"
-                        ? "bg-yellow-fill"
-                        : "bg-cyan-fill";
-                
-                const cardHtml = `
+                    const fillClass = conf >= 85 ? "bg-green-fill" : conf >= 70 ? "bg-yellow-fill" : "bg-cyan-fill";
+                    const hasThumb = m.thumbnail && (m.thumbnail.startsWith("http") || m.thumbnail.startsWith("data:"));
+
+                    html += `
                     <div class="match-card">
                         <div class="match-card-header">
-                            <span class="match-category-tag">${m.category.toUpperCase()}</span>
-                            <span class="match-type-badge ${badgeClass}">${m.match_type.toUpperCase()}</span>
+                            <span class="match-category-tag"><i class="fa-solid fa-shield-halved"></i> ${m.category || "Similar Match"}</span>
+                            <span class="match-type-badge ${badgeClass}">${(m.match_type || "SIMILAR").toUpperCase()}</span>
                         </div>
                         <div class="match-details-body">
+                            ${hasThumb ? `
                             <div class="match-thumb-preview">
-                                <img src="${m.thumbnail}" alt="${m.domain} Visual Match" class="match-thumb-img">
-                            </div>
+                                <img class="match-thumb-img" src="${m.thumbnail}" alt="${m.source_name || ""}"
+                                     onerror="this.parentElement.style.display='none'">
+                            </div>` : ''}
                             <div class="match-details-left">
-                                <div class="match-source-title">${m.source_name}</div>
-                                <div class="match-summary-text">${m.summary}</div>
+                                <div class="match-source-title" style="word-break:break-word;">${m.source_name || m.domain}</div>
+                                <div class="match-summary-text">${m.summary || ""}</div>
+                                ${m.recon_suggestion ? `
                                 <div class="match-recon-suggestion">
-                                    <span class="suggestion-label"><i class="fa-solid fa-fingerprint text-purple"></i> OSINT RECON SUGGESTION:</span>
-                                    <p class="suggestion-text">${m.recon_suggestion}</p>
-                                </div>
+                                    <div class="suggestion-label"><i class="fa-solid fa-lightbulb"></i> RECON NOTE</div>
+                                    <div class="suggestion-text">${m.recon_suggestion}</div>
+                                </div>` : ""}
                                 <div class="match-meta-info">
-                                    <span><i class="fa-solid fa-globe text-cyan"></i> ${m.domain}</span>
-                                    <span><i class="fa-solid fa-clock text-purple"></i> First Detected: ${m.timestamp}</span>
-                                    <span><i class="fa-solid fa-triangle-exclamation text-yellow"></i> Host Risk: ${m.risk}</span>
+                                    <span><i class="fa-solid fa-globe"></i> ${m.domain}</span>
+                                    ${m.timestamp ? `<span><i class="fa-solid fa-calendar-days"></i> ${m.timestamp}</span>` : ""}
                                 </div>
                             </div>
                             <div class="match-details-right">
                                 <div class="match-confidence-container">
-                                    <div class="match-confidence-txt">Confidence: ${m.confidence}%</div>
-                                    <div class="match-bar-container">
-                                        <div class="match-bar-fill ${fillClass}" style="width: ${m.confidence}%"></div>
-                                    </div>
+                                    <div class="match-confidence-txt">Similarity: ${conf}%</div>
+                                    <div class="match-bar-container"><div class="match-bar-fill ${fillClass}" style="width:${conf}%"></div></div>
                                 </div>
-                                <a href="${m.url}" target="_blank" rel="noopener noreferrer" class="btn btn-primary btn-sm border-cyan btn-glow" style="font-size:0.75rem; padding: 6px 12px; margin-top:8px; width:100%; justify-content:center;"><i class="fa-solid fa-arrow-up-right-from-square"></i> Explore Source</a>
+                                <div style="margin-top:10px;">
+                                    <a href="${m.url}" target="_blank" rel="noopener noreferrer"
+                                       class="btn btn-primary btn-sm btn-glow"
+                                       style="font-size:0.72rem; padding:6px 12px; display:inline-flex; align-items:center; gap:5px; width:100%; justify-content:center;">
+                                        <i class="fa-solid fa-arrow-up-right-from-square"></i> Visit Source
+                                    </a>
+                                </div>
                             </div>
                         </div>
                     </div>`;
-                matchList.innerHTML += cardHtml;
-            });
+                });
+
+                html += `</div>`;
+            }
         }
+
+        matchList.innerHTML = html;
+
+    } catch (e) {
+        console.error("Critical rendering error in renderImageResults:", e);
     }
 }
 
@@ -804,3 +992,5 @@ function setBadgeColor(el, level) {
     else if (level === "Medium") el.classList.add("bg-yellow");
     else el.classList.add("bg-cyan");
 }
+
+

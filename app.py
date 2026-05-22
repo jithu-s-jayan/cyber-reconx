@@ -30,6 +30,20 @@ app.config['SESSION_COOKIE_HTTPONLY'] = True
 
 CORS(app)
 
+# Disable caching for static files in development
+app.config['SEND_FILE_MAX_AGE_DEFAULT'] = 0
+
+@app.after_request
+def add_header(r):
+    """
+    Force disable caching for static assets during development session.
+    """
+    r.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+    r.headers["Pragma"] = "no-cache"
+    r.headers["Expires"] = "0"
+    r.headers['Cache-Control'] = 'public, max-age=0'
+    return r
+
 # --- REVERSE IMAGE UPLOAD CONFIGURATION ---
 UPLOAD_FOLDER = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'static', 'images', 'uploads')
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
