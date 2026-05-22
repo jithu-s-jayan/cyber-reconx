@@ -45,8 +45,11 @@ def add_header(r):
     return r
 
 # --- REVERSE IMAGE UPLOAD CONFIGURATION ---
-UPLOAD_FOLDER = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'static', 'images', 'uploads')
-os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+if os.environ.get('VERCEL'):
+    UPLOAD_FOLDER = '/tmp'
+else:
+    UPLOAD_FOLDER = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'static', 'images', 'uploads')
+    os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'webp'}
 
@@ -337,7 +340,10 @@ def api_reverse_image():
         
         file.save(filepath)
         
-        relative_path = f"/static/images/uploads/{filename}"
+        if os.environ.get('VERCEL'):
+            relative_path = f"/api/uploads/{filename}"
+        else:
+            relative_path = f"/static/images/uploads/{filename}"
         
         try:
             res = run_reverse_image_investigation(filepath, orig_filename)
@@ -385,6 +391,10 @@ def download_report(scan_id):
     generate_pdf_report(report_data, report_path)
     
     return send_file(report_path, as_attachment=True, download_name=report_filename)
+
+@app.route('/api/uploads/<filename>')
+def serve_upload(filename):
+    return send_file(os.path.join(app.config['UPLOAD_FOLDER'], filename))
 
 if __name__ == '__main__':
     # Presentation initialization: Auto-seed database with a default operator and isolated mock scans if empty
