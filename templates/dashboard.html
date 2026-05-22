@@ -146,6 +146,7 @@
                 <a class="nav-item active" data-section="home"><i class="fa-solid fa-chart-line"></i> Dashboard</a>
                 <a class="nav-item" data-section="domain"><i class="fa-solid fa-globe"></i> Website Intel</a>
                 <a class="nav-item" data-section="username"><i class="fa-solid fa-fingerprint"></i> Identity Trace</a>
+                <a class="nav-item" data-section="image"><i class="fa-solid fa-image"></i> Image Intel</a>
                 <a class="nav-item" data-section="network"><i class="fa-solid fa-network-wired"></i> Port Sweeper</a>
                 <a class="nav-item" data-section="ip-intel"><i class="fa-solid fa-map-location-dot"></i> IP Geolocation</a>
                 
@@ -320,6 +321,93 @@
                         </div>
                         <div style="padding: 24px;">
                             <div id="res-username-list" style="display:grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap:16px;">
+                                <!-- populated by JS -->
+                            </div>
+                        </div>
+                    </div>
+                </section>
+                
+                <!-- SECTION: IMAGE INTEL -->
+                <section id="section-image" class="tab-content">
+                    <div class="tool-header">
+                        <h2><i class="fa-solid fa-image text-gradient"></i> Reverse Image Intel</h2>
+                        <p class="text-muted">Analyze images for EXIF metadata, perform perceptual hashing, and reverse search for origin traces.</p>
+                    </div>
+                    
+                    <div class="glass-card panel">
+                        <form id="image-recon-form">
+                            <!-- Drag and Drop Zone -->
+                            <div id="image-drop-zone" style="border: 2px dashed var(--border-color); border-radius: var(--radius-md); padding: 40px; text-align: center; cursor: pointer; transition: all 0.3s ease; margin-bottom: 24px; background: rgba(0,0,0,0.2);">
+                                <i class="fa-solid fa-cloud-arrow-up text-gradient" style="font-size: 3rem; margin-bottom: 16px;"></i>
+                                <h3 style="margin-bottom: 8px;">Drag & Drop Image File Here</h3>
+                                <p class="text-muted">Supports JPG, PNG, WEBP (Max 5MB)</p>
+                                <button type="button" class="btn btn-secondary mt-3">Browse Files</button>
+                            </div>
+                            <input type="file" id="image-file-input" name="image" accept="image/jpeg, image/png, image/webp" class="hidden">
+                            
+                            <!-- Upload Preview Area -->
+                            <div id="upload-preview-area" class="hidden" style="margin-bottom: 24px; display: flex; gap: 16px; align-items: center; background: rgba(0,0,0,0.3); padding: 16px; border-radius: var(--radius-md); border: 1px solid var(--border-color);">
+                                <img id="preview-image" src="" alt="Preview" style="width: 80px; height: 80px; object-fit: cover; border-radius: 8px;">
+                                <div style="flex: 1;">
+                                    <h4 id="preview-filename-txt" style="margin-bottom: 4px;">filename.jpg</h4>
+                                    <p id="preview-filesize-txt" class="text-muted mono-text">0.0 KB</p>
+                                </div>
+                                <button type="button" id="reset-upload-btn" class="btn btn-secondary" style="padding: 8px 12px;"><i class="fa-solid fa-trash"></i></button>
+                            </div>
+
+                            <button type="submit" class="btn btn-primary"><i class="fa-solid fa-magnifying-glass"></i> Analyze Image</button>
+                        </form>
+                    </div>
+                    
+                    <!-- Loader -->
+                    <div id="image-loader" class="glass-card panel text-center mt-4 hidden">
+                        <div class="spinner mx-auto mb-3" style="margin: 0 auto;"></div>
+                        <h4>Extracting Visual Telemetry...</h4>
+                        <div style="width: 100%; background: rgba(255,255,255,0.1); height: 4px; border-radius: 2px; margin: 16px 0; overflow: hidden;">
+                            <div id="image-progress-bar" style="height: 100%; width: 0%; background: var(--primary-gradient); transition: width 0.3s ease;"></div>
+                        </div>
+                        <div id="image-live-logs" class="activity-feed" style="height:120px; margin-top:16px; text-align:left; background:rgba(0,0,0,0.3);"></div>
+                    </div>
+                    
+                    <!-- Results Area -->
+                    <div id="image-results-area" class="glass-card mt-4 hidden p-0" style="padding:0; overflow:hidden;">
+                        <div class="results-header">
+                            <div style="display: flex; gap: 24px; align-items: center;">
+                                <img id="res-image-preview" src="" alt="Analyzed Target" style="width: 100px; height: 100px; object-fit: cover; border-radius: var(--radius-md); border: 2px solid var(--border-color);">
+                                <div>
+                                    <h3 id="res-image-filename" style="font-size:1.5rem; margin-bottom:8px;">TARGET.JPG</h3>
+                                    <div class="badge badge-info">Resolution: <span id="res-image-dimensions" style="margin: 0 4px; font-weight:800;">0x0</span></div>
+                                </div>
+                            </div>
+                            <div style="text-align:right;">
+                                <div class="badge badge-warning" id="res-image-badge">MEDIUM</div>
+                                <div style="font-size:2rem; font-weight:800; color:var(--text-primary); margin-top:4px;" id="res-image-score">0%</div>
+                                <div class="stat-label">EXIF Risk Score</div>
+                            </div>
+                        </div>
+                        
+                        <div class="grid-detail">
+                            <div>
+                                <div class="detail-group"><div class="detail-label">Perceptual Hash (dHash)</div><div class="detail-value text-gradient mono-text" id="res-image-hash" style="word-break:break-all;">-</div></div>
+                                <div class="detail-group"><div class="detail-label">Image Format</div><div class="detail-value" id="res-image-format">-</div></div>
+                            </div>
+                            <div>
+                                <div class="detail-group"><div class="detail-label">File Size</div><div class="detail-value mono-text" id="res-image-size">-</div></div>
+                                <div class="detail-group"><div class="detail-label">Color Mode</div><div class="detail-value" id="res-image-mode">-</div></div>
+                            </div>
+                            <div>
+                                <div class="detail-group"><div class="detail-label">Camera Model</div><div class="detail-value" id="res-exif-camera">-</div></div>
+                                <div class="detail-group"><div class="detail-label">Date Taken</div><div class="detail-value mono-text" id="res-exif-date">-</div></div>
+                            </div>
+                            <div>
+                                <div class="detail-group"><div class="detail-label">GPS Coordinates</div><div class="detail-value text-gradient mono-text" id="res-exif-gps">-</div></div>
+                                <div class="detail-group"><div class="detail-label">Software / Editor</div><div class="detail-value" id="res-exif-software">-</div></div>
+                            </div>
+                        </div>
+                        
+                        <div style="padding: 24px; border-top: 1px solid var(--border-color);">
+                            <div class="detail-label mb-3">Reverse Search Mentions</div>
+                            <div id="res-image-mentions" style="display:flex; flex-direction:column; gap:12px;">
                                 <!-- populated by JS -->
                             </div>
                         </div>
