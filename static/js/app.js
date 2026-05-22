@@ -30,7 +30,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     // Restore tab from URL hash on page load (e.g. /dashboard#username)
     const hash = window.location.hash.replace('#', '');
-    const validTabs = ['home', 'domain', 'username', 'network', 'ip-intel', 'history'];
+    const validTabs = ['home', 'domain', 'username', 'network', 'ip-intel', 'image-intel', 'history'];
     if (hash && validTabs.includes(hash)) {
         _activateTab(hash, false); // false = don't push state again
     }
@@ -165,11 +165,11 @@ function loadScanHistory() {
                 const scoreColor = scan.threat_level === "High" ? "text-red" : scan.threat_level === "Medium" ? "text-yellow" : "text-green";
                 tbody.innerHTML += `
                     <tr>
-                        <td class="text-white font-weight-bold">${scan.target}</td>
-                        <td><span class="tag">${scan.scan_type}</span></td>
                         <td>${dateStr}</td>
-                        <td><span class="${scoreColor} font-weight-bold">${scan.threat_score}% (${scan.threat_level})</span></td>
-                        <td class="truncate-text">${scan.summary}</td>
+                        <td><span class="tag">${scan.scan_type}</span></td>
+                        <td class="text-white font-weight-bold">${scan.target}</td>
+                        <td><span class="${scoreColor} font-weight-bold">${scan.threat_score}%</span></td>
+                        <td><span class="${scoreColor} font-weight-bold">${scan.threat_level}</span></td>
                         <td><a href="/api/report/${scan.id}" class="btn btn-secondary border-cyan btn-sm"><i class="fa-solid fa-download"></i> PDF REPORT</a></td>
                     </tr>`;
             });
@@ -184,6 +184,7 @@ const SECTION_TITLES = {
     username:  "Identity Footprint Discovery Module",
     network:   "TCP Port Sweeper & Scanner Module",
     "ip-intel": "IP Geolocation & Threat Diagnostics",
+    "image-intel": "AI-Powered Reverse Image Investigation Module",
     history:   "Security Records Database"
 };
 
@@ -383,6 +384,159 @@ function setupFormHandlers() {
             });
         });
     }
+
+    // AI-Powered Reverse Image Intel Drag & Drop / Upload Handler
+    const dropZone = document.getElementById("image-drop-zone");
+    const fileInput = document.getElementById("image-file-input");
+    const resetBtn = document.getElementById("reset-upload-btn");
+    const imageForm = document.getElementById("image-recon-form");
+    const uploadArea = document.getElementById("upload-preview-area");
+    const previewImg = document.getElementById("preview-image");
+    const filenameTxt = document.getElementById("preview-filename-txt");
+    const filesizeTxt = document.getElementById("preview-filesize-txt");
+    
+    if (dropZone && fileInput) {
+        // Trigger click event on dropZone to open file dialog
+        dropZone.addEventListener("click", () => {
+            fileInput.click();
+        });
+        
+        // Highlight drag area on dragover
+        dropZone.addEventListener("dragover", (e) => {
+            e.preventDefault();
+            dropZone.classList.add("dragover");
+        });
+        
+        // Remove highlight on dragleave
+        dropZone.addEventListener("dragleave", () => {
+            dropZone.classList.remove("dragover");
+        });
+        
+        // Handle file drop
+        dropZone.addEventListener("drop", (e) => {
+            e.preventDefault();
+            dropZone.classList.remove("dragover");
+            const files = e.dataTransfer.files;
+            if (files.length > 0) {
+                fileInput.files = files;
+                handleFileSelect(files[0]);
+            }
+        });
+        
+        // Handle native file selection
+        fileInput.addEventListener("change", () => {
+            if (fileInput.files.length > 0) {
+                handleFileSelect(fileInput.files[0]);
+            }
+        });
+    }
+    
+    function handleFileSelect(file) {
+        if (!file) return;
+        
+        const ext = file.name.split('.').pop().toLowerCase();
+        const allowed = ['jpg', 'jpeg', 'png', 'webp'];
+        if (!allowed.includes(ext)) {
+            alert("File type not supported. Allowed formats: PNG, JPG, JPEG, WEBP");
+            return;
+        }
+        
+        filenameTxt.textContent = file.name;
+        filesizeTxt.textContent = `${(file.size / 1024).toFixed(2)} KB`;
+        
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            previewImg.src = e.target.result;
+            dropZone.classList.add("hidden");
+            uploadArea.classList.remove("hidden");
+        };
+        reader.readAsDataURL(file);
+    }
+    
+    if (resetBtn) {
+        resetBtn.addEventListener("click", () => {
+            imageForm.reset();
+            dropZone.classList.remove("hidden");
+            uploadArea.classList.add("hidden");
+            previewImg.src = "";
+            filenameTxt.textContent = "filename.jpg";
+            filesizeTxt.textContent = "0.0 KB";
+        });
+    }
+    
+    if (imageForm) {
+        imageForm.addEventListener("submit", (e) => {
+            e.preventDefault();
+            const file = fileInput.files[0];
+            if (!file) return;
+            
+            const loader = document.getElementById("image-loader");
+            const area = document.getElementById("image-results-area");
+            const progress = document.getElementById("image-progress-bar");
+            const logs = document.getElementById("image-live-logs");
+            
+            loader.classList.remove("hidden");
+            area.classList.add("hidden");
+            
+            progress.style.width = "0%";
+            logs.innerHTML = "<p class='text-cyan'>[*] Initializing target visual grid telemetry...</p>";
+            
+            let step = 0;
+            const logSteps = [
+                { percent: 15, msg: "[*] Opening image container and auditing file integrity...", color: "text-white" },
+                { percent: 30, msg: "[*] Processing 64-bit Difference Hash (dHash) visual fingerprint...", color: "text-green" },
+                { percent: 50, msg: "[*] Hashing visual pixels completed. Visual Key generated...", color: "text-cyan" },
+                { percent: 70, msg: "[*] Scanning EXIF hardware parameters and location metadata...", color: "text-yellow" },
+                { percent: 85, msg: "[*] Querying public OSINT domain indexes and reverse lookup databases...", color: "text-purple" },
+                { percent: 95, msg: "[*] Generating threat reports and calculating remediation scores...", color: "text-white" }
+            ];
+            
+            const logInterval = setInterval(() => {
+                if (step < logSteps.length) {
+                    const s = logSteps[step];
+                    progress.style.width = `${s.percent}%`;
+                    logs.innerHTML += `<p class="${s.color}">${s.msg}</p>`;
+                    logs.scrollTop = logs.scrollHeight;
+                    step++;
+                }
+            }, 500);
+            
+            const formData = new FormData();
+            formData.append("image", file);
+            
+            fetch("/api/reverse-image", {
+                method: "POST",
+                body: formData
+            })
+            .then(res => res.json())
+            .then(data => {
+                clearInterval(logInterval);
+                if (data.error) {
+                    loader.classList.add("hidden");
+                    alert("Error: " + data.error);
+                    return;
+                }
+                
+                progress.style.width = "100%";
+                logs.innerHTML += "<p class='text-green'>[✓] Reverse Image Investigation complete. Loading results...</p>";
+                logs.scrollTop = logs.scrollHeight;
+                
+                setTimeout(() => {
+                    loader.classList.add("hidden");
+                    renderImageResults(data);
+                    area.classList.remove("hidden");
+                    loadDashboardStats();
+                    loadScanHistory();
+                }, 400);
+            })
+            .catch((err) => {
+                clearInterval(logInterval);
+                loader.classList.add("hidden");
+                alert("Connection error occurred during reverse image scan.");
+                console.error(err);
+            });
+        });
+    }
 }
 
 // ─── 8. RESULT RENDERERS ────────────────────
@@ -502,6 +656,139 @@ function renderIpResults(data) {
     const score = document.getElementById("res-ip-score");
     if (badge) { badge.textContent = data.threat_level || "LOW"; setBadgeColor(badge, data.threat_level); }
     if (score) score.textContent = (data.threat_score || 0) + "%";
+}
+
+function renderImageResults(data) {
+    const thumbImg = document.getElementById("res-image-thumb");
+    if (thumbImg) thumbImg.src = data.image_url || "";
+    
+    setText("res-image-filename", data.filename || "payload.jpg");
+    setText("res-image-hash", data.fingerprint || "0000000000000000");
+    setText("res-image-duration", data.duration !== undefined ? data.duration.toFixed(3) : "0.000");
+    
+    const threatBadge = document.getElementById("res-image-threat-badge");
+    const threatScore = document.getElementById("res-image-threat-score");
+    if (threatBadge) {
+        threatBadge.textContent = data.threat_level || "LOW";
+        setBadgeColor(threatBadge, data.threat_level);
+    }
+    if (threatScore) threatScore.textContent = (data.threat_score || 0) + "%";
+    
+    const intelBadge = document.getElementById("res-image-intel-badge");
+    const intelScore = document.getElementById("res-image-intel-score");
+    if (intelBadge) {
+        const iScore = data.intelligence_score || 0;
+        let intelLevel = "EXCELLENT";
+        if (iScore < 45) intelLevel = "CRITICAL";
+        else if (iScore < 70) intelLevel = "FAIR";
+        
+        intelBadge.textContent = intelLevel;
+        intelBadge.className = "threat-score-badge";
+        if (intelLevel === "CRITICAL") intelBadge.classList.add("bg-red");
+        else if (intelLevel === "FAIR") intelBadge.classList.add("bg-yellow");
+        else intelBadge.classList.add("bg-cyan");
+    }
+    if (intelScore) intelScore.textContent = (data.intelligence_score || 0) + "%";
+    
+    const gpsAlert = document.getElementById("gps-exposure-alert");
+    const gpsAlertText = document.getElementById("gps-alert-text");
+    if (gpsAlert) {
+        if (data.metadata && data.metadata.gps_latitude !== null) {
+            gpsAlert.classList.remove("hidden");
+            if (gpsAlertText) {
+                gpsAlertText.innerHTML = `<i class="fa-solid fa-triangle-exclamation"></i> <strong>CRITICAL OPSEC TELEMETRY EXPOSURE:</strong> Active GPS coordinates detected inside image headers (${data.metadata.gps_coords}). Physical location exposure hazard mapped.`;
+            }
+        } else {
+            gpsAlert.classList.add("hidden");
+        }
+    }
+    
+    if (data.metadata) {
+        setText("res-exif-make", data.metadata.camera_make || "N/A");
+        setText("res-exif-model", data.metadata.camera_model || "N/A");
+        setText("res-exif-date", data.metadata.timestamp || "N/A");
+        setText("res-exif-software", data.metadata.software || "N/A");
+        setText("res-exif-fnumber", data.metadata.f_number || "N/A");
+        setText("res-exif-shutter", data.metadata.exposure_time || "N/A");
+        setText("res-exif-iso", data.metadata.iso || "N/A");
+        
+        setText("res-file-size", data.metadata.file_size || "N/A");
+        setText("res-file-dimensions", data.metadata.resolution || "N/A");
+        setText("res-file-format", data.metadata.format || "N/A");
+        setText("res-file-mode", data.metadata.mode || "N/A");
+        setText("res-gps-coords", data.metadata.gps_coords || "N/A");
+        
+        const gpsLink = document.getElementById("res-gps-link");
+        const gpsNoLink = document.getElementById("res-gps-nolink");
+        if (data.metadata.gps_latitude !== null && data.metadata.gps_longitude !== null) {
+            if (gpsLink) {
+                gpsLink.href = `https://www.google.com/maps/search/?api=1&query=${data.metadata.gps_latitude},${data.metadata.gps_longitude}`;
+                gpsLink.classList.remove("hidden");
+            }
+            if (gpsNoLink) gpsNoLink.classList.add("hidden");
+        } else {
+            if (gpsLink) gpsLink.classList.add("hidden");
+            if (gpsNoLink) gpsNoLink.classList.remove("hidden");
+        }
+    }
+    
+    const matchList = document.getElementById("res-match-list");
+    if (matchList) {
+        matchList.innerHTML = "";
+        if (!data.matches || data.matches.length === 0) {
+            matchList.innerHTML = `<div class="text-center share-tech-mono" style="padding:15px; color:rgba(255,255,255,0.3);">No visual similarities resolved in public datasets.</div>`;
+        } else {
+            data.matches.forEach(m => {
+                const badgeClass = m.match_type === "Exact Match" 
+                    ? "match-type-exact" 
+                    : m.match_type === "High Similarity" 
+                        ? "match-type-high" 
+                        : "match-type-partial";
+                        
+                const fillClass = m.match_type === "Exact Match"
+                    ? "bg-green-fill"
+                    : m.match_type === "High Similarity"
+                        ? "bg-yellow-fill"
+                        : "bg-cyan-fill";
+                
+                const cardHtml = `
+                    <div class="match-card">
+                        <div class="match-card-header">
+                            <span class="match-category-tag">${m.category.toUpperCase()}</span>
+                            <span class="match-type-badge ${badgeClass}">${m.match_type.toUpperCase()}</span>
+                        </div>
+                        <div class="match-details-body">
+                            <div class="match-thumb-preview">
+                                <img src="${m.thumbnail}" alt="${m.domain} Visual Match" class="match-thumb-img">
+                            </div>
+                            <div class="match-details-left">
+                                <div class="match-source-title">${m.source_name}</div>
+                                <div class="match-summary-text">${m.summary}</div>
+                                <div class="match-recon-suggestion">
+                                    <span class="suggestion-label"><i class="fa-solid fa-fingerprint text-purple"></i> OSINT RECON SUGGESTION:</span>
+                                    <p class="suggestion-text">${m.recon_suggestion}</p>
+                                </div>
+                                <div class="match-meta-info">
+                                    <span><i class="fa-solid fa-globe text-cyan"></i> ${m.domain}</span>
+                                    <span><i class="fa-solid fa-clock text-purple"></i> First Detected: ${m.timestamp}</span>
+                                    <span><i class="fa-solid fa-triangle-exclamation text-yellow"></i> Host Risk: ${m.risk}</span>
+                                </div>
+                            </div>
+                            <div class="match-details-right">
+                                <div class="match-confidence-container">
+                                    <div class="match-confidence-txt">Confidence: ${m.confidence}%</div>
+                                    <div class="match-bar-container">
+                                        <div class="match-bar-fill ${fillClass}" style="width: ${m.confidence}%"></div>
+                                    </div>
+                                </div>
+                                <a href="${m.url}" target="_blank" rel="noopener noreferrer" class="btn btn-primary btn-sm border-cyan btn-glow" style="font-size:0.75rem; padding: 6px 12px; margin-top:8px; width:100%; justify-content:center;"><i class="fa-solid fa-arrow-up-right-from-square"></i> Explore Source</a>
+                            </div>
+                        </div>
+                    </div>`;
+                matchList.innerHTML += cardHtml;
+            });
+        }
+    }
 }
 
 // ─── UTILITIES ──────────────────────────────

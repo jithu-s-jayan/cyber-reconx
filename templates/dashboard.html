@@ -2,510 +2,503 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Cyber ReconX — Command Dashboard</title>
-    <!-- Fonts & Icons -->
-    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;800&family=Share+Tech+Mono&family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Cyber ReconX — Dashboard</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="/static/css/style.css">
-    <!-- ChartJS -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
-        /* Lightweight mobile sidebar fixes for original UI */
-        .sidebar-overlay {
-            display: none; position: fixed; inset: 0;
-            background: rgba(0,0,0,0.6); z-index: 99; backdrop-filter: blur(4px);
+        .dashboard-layout { display: flex; height: 100vh; overflow: hidden; }
+        
+        /* Sidebar */
+        .sidebar {
+            width: 280px; background: rgba(11, 14, 23, 0.95);
+            backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+            border-right: 1px solid var(--border-color);
+            display: flex; flex-direction: column; z-index: 100;
+            transition: transform 0.3s ease;
         }
-        .sidebar-overlay.active { display: block; }
-        @media(max-width: 900px) {
-            .sidebar { transform: translateX(-100%); transition: transform 0.3s ease; z-index: 100; }
-            .sidebar.mobile-open { transform: translateX(0); }
-            .main-content { margin-left: 0; }
-            .topbar-left .btn-icon { display: block; }
+        .sidebar-header { padding: 24px; border-bottom: 1px solid var(--border-color); display: flex; align-items: center; gap: 12px; }
+        .sidebar-logo { font-size: 1.25rem; font-weight: 800; color: #fff; display: flex; align-items: center; gap: 8px; }
+        .sidebar-logo i { color: var(--primary-cyan); }
+        
+        .sidebar-user { padding: 24px; display: flex; align-items: center; gap: 16px; border-bottom: 1px solid var(--border-color); }
+        .user-avatar { width: 44px; height: 44px; border-radius: var(--radius-full); background: var(--primary-gradient); display: flex; align-items: center; justify-content: center; color: #fff; font-weight: 700; overflow: hidden; }
+        .user-info { display: flex; flex-direction: column; }
+        .user-name { font-size: 0.9rem; font-weight: 600; color: #fff; }
+        .user-status { font-size: 0.75rem; color: var(--status-success); display: flex; align-items: center; gap: 6px; }
+        .pulse-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--status-success); box-shadow: 0 0 8px var(--status-success); animation: pulse-soft 2s infinite; }
+        
+        .nav-menu { flex: 1; padding: 24px 16px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; }
+        .nav-label { font-size: 0.75rem; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; padding: 0 12px; margin-bottom: 8px; margin-top: 16px; }
+        .nav-item {
+            display: flex; align-items: center; gap: 12px;
+            padding: 12px 16px; border-radius: var(--radius-md);
+            color: var(--text-secondary); text-decoration: none; font-weight: 500; font-size: 0.9rem;
+            transition: all 0.2s ease; cursor: pointer; border: 1px solid transparent;
+        }
+        .nav-item:hover { color: #fff; background: rgba(255,255,255,0.05); }
+        .nav-item.active { color: #fff; background: rgba(99, 102, 241, 0.1); border-color: rgba(99, 102, 241, 0.2); }
+        .nav-item.active i { color: var(--primary-cyan); }
+        .nav-item i { width: 20px; text-align: center; font-size: 1.1rem; }
+        
+        .sidebar-footer { padding: 24px; border-top: 1px solid var(--border-color); }
+        .clock-display { font-family: 'JetBrains Mono', monospace; font-size: 1.5rem; font-weight: 700; color: #fff; margin-bottom: 12px; }
+        
+        /* Main Content */
+        .main-content { flex: 1; display: flex; flex-direction: column; overflow: hidden; background: var(--bg-base); position: relative; }
+        
+        .topbar {
+            height: 70px; padding: 0 32px;
+            background: rgba(11, 14, 23, 0.8); backdrop-filter: blur(20px);
+            border-bottom: 1px solid var(--border-color);
+            display: flex; align-items: center; justify-content: space-between;
+            z-index: 10;
+        }
+        .topbar-title { font-size: 1.1rem; font-weight: 600; color: #fff; }
+        .menu-toggle { display: none; background: none; border: none; color: #fff; font-size: 1.25rem; cursor: pointer; }
+        
+        .workspace { flex: 1; padding: 32px; overflow-y: auto; }
+        
+        /* Dashboard Layouts */
+        .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 24px; margin-bottom: 32px; }
+        .stat-card { padding: 24px; display: flex; justify-content: space-between; align-items: center; }
+        .stat-info { display: flex; flex-direction: column; gap: 8px; }
+        .stat-label { font-size: 0.85rem; color: var(--text-muted); font-weight: 500; text-transform: uppercase; letter-spacing: 0.05em; }
+        .stat-value { font-size: 2.5rem; font-weight: 800; color: #fff; line-height: 1; }
+        .stat-icon { width: 56px; height: 56px; border-radius: var(--radius-md); display: flex; align-items: center; justify-content: center; font-size: 1.5rem; }
+        
+        .b-blue { background: rgba(59, 130, 246, 0.1); color: #3b82f6; }
+        .b-red { background: rgba(239, 68, 68, 0.1); color: #ef4444; }
+        .b-yellow { background: rgba(245, 158, 11, 0.1); color: #f59e0b; }
+        .b-indigo { background: rgba(99, 102, 241, 0.1); color: #6366f1; }
+        
+        .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-bottom: 32px; }
+        .panel { padding: 24px; display: flex; flex-direction: column; }
+        .panel-header { font-size: 1.1rem; font-weight: 600; color: #fff; margin-bottom: 24px; display: flex; justify-content: space-between; align-items: center; }
+        
+        .chart-container { height: 260px; position: relative; }
+        .activity-feed { height: 260px; overflow-y: auto; padding-right: 12px; }
+        .activity-feed p { font-family: 'JetBrains Mono', monospace; font-size: 0.8rem; margin-bottom: 8px; padding: 12px; background: rgba(0,0,0,0.2); border-radius: var(--radius-sm); border: 1px solid var(--border-color); }
+        
+        /* Tool Views */
+        .tab-content { display: none; }
+        .tab-content.active { display: block; animation: fadeIn 0.4s ease forwards; }
+        
+        .tool-header { max-width: 800px; margin-bottom: 32px; }
+        .tool-header h2 { font-size: 1.75rem; margin-bottom: 12px; display: flex; align-items: center; gap: 12px; }
+        
+        .results-area { margin-top: 32px; }
+        .results-header { display: flex; justify-content: space-between; align-items: flex-end; padding: 24px; border-bottom: 1px solid var(--border-color); background: rgba(0,0,0,0.2); border-radius: var(--radius-lg) var(--radius-lg) 0 0; }
+        
+        .data-table { width: 100%; border-collapse: collapse; text-align: left; }
+        .data-table th { padding: 16px 24px; font-size: 0.85rem; font-weight: 600; color: var(--text-muted); text-transform: uppercase; border-bottom: 1px solid var(--border-color); }
+        .data-table td { padding: 16px 24px; border-bottom: 1px solid rgba(255,255,255,0.03); font-size: 0.95rem; }
+        
+        .grid-detail { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; padding: 24px; }
+        .detail-group { margin-bottom: 24px; }
+        .detail-label { font-size: 0.85rem; color: var(--text-muted); margin-bottom: 8px; }
+        .detail-value { font-size: 1.1rem; font-weight: 500; color: #fff; }
+        
+        /* Mobile Overlay */
+        .mobile-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 90; backdrop-filter: blur(4px); }
+        .mobile-overlay.show { display: block; }
+        
+        @media (max-width: 1024px) {
+            .grid-2 { grid-template-columns: 1fr; }
+        }
+        @media (max-width: 768px) {
+            .sidebar { position: fixed; left: -280px; height: 100vh; }
+            .sidebar.open { transform: translateX(280px); }
+            .menu-toggle { display: block; }
+            .topbar { padding: 0 20px; }
+            .workspace { padding: 20px; }
             .stats-grid { grid-template-columns: 1fr 1fr; }
-            .ops-grid { grid-template-columns: 1fr; }
+            .results-header { flex-direction: column; align-items: flex-start; gap: 16px; }
+            .grid-detail { grid-template-columns: 1fr; padding: 16px; }
         }
-        @media(max-width: 500px) {
+        @media (max-width: 480px) {
             .stats-grid { grid-template-columns: 1fr; }
-            .threat-index-card { flex-direction: column; }
-            .threat-chart-wrapper { width: 100%; }
         }
     </style>
 </head>
-<body class="dashboard-body">
-    <!-- Sidebar Overlay (mobile) -->
-    <div class="sidebar-overlay" id="sidebarOverlay"></div>
-    <div class="dashboard-container">
+<body>
+    <div class="ambient-bg"></div>
+    <div class="mobile-overlay" id="mobile-overlay"></div>
+    
+    <div class="dashboard-layout">
         
-        <!-- Sidebar Navigation -->
-        <aside class="sidebar">
-            <div class="sidebar-brand">
-                <i class="fa-solid fa-shield-halved text-cyan"></i>
-                <h2>RECON<span>X</span></h2>
+        <aside class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <div class="sidebar-logo"><i class="fa-solid fa-shield-halved"></i> Cyber ReconX</div>
             </div>
             
             <div class="sidebar-user">
                 <div class="user-avatar" id="sidebar-avatar"><i class="fa-solid fa-user-ninja"></i></div>
-                <div class="user-meta">
-                    <span class="user-role share-tech-mono" id="sidebar-username">OPERATOR #01</span>
-                    <span class="system-status" id="sidebar-status"><span class="pulse-dot"></span> SECURE SHELL</span>
+                <div class="user-info">
+                    <span class="user-name" id="sidebar-username">OPERATOR</span>
+                    <span class="user-status" id="sidebar-status"><span class="pulse-dot"></span> SECURE SHELL</span>
                 </div>
             </div>
-
-            <nav class="sidebar-nav">
-                <a href="#" class="nav-item active" data-section="home"><i class="fa-solid fa-chart-line"></i> Main Ops Control</a>
-                <a href="#" class="nav-item" data-section="domain"><i class="fa-solid fa-globe"></i> Website Intel</a>
-                <a href="#" class="nav-item" data-section="username"><i class="fa-solid fa-user-check"></i> Identity Fingerprint</a>
-                <a href="#" class="nav-item" data-section="network"><i class="fa-solid fa-network-wired"></i> Port Sweeper</a>
-                <a href="#" class="nav-item" data-section="ip-intel"><i class="fa-solid fa-map-location-dot"></i> IP Geolocation</a>
-                <a href="#" class="nav-item" data-section="history"><i class="fa-solid fa-clock-rotate-left"></i> History Records</a>
+            
+            <nav class="nav-menu">
+                <div class="nav-label">Operations</div>
+                <a class="nav-item active" data-section="home"><i class="fa-solid fa-chart-line"></i> Dashboard</a>
+                <a class="nav-item" data-section="domain"><i class="fa-solid fa-globe"></i> Website Intel</a>
+                <a class="nav-item" data-section="username"><i class="fa-solid fa-fingerprint"></i> Identity Trace</a>
+                <a class="nav-item" data-section="network"><i class="fa-solid fa-network-wired"></i> Port Sweeper</a>
+                <a class="nav-item" data-section="ip-intel"><i class="fa-solid fa-map-location-dot"></i> IP Geolocation</a>
+                
+                <div class="nav-label">Records</div>
+                <a class="nav-item" data-section="history"><i class="fa-solid fa-clock-rotate-left"></i> History Logs</a>
             </nav>
             
             <div class="sidebar-footer">
-                <div class="clock share-tech-mono" id="realtime-clock">00:00:00</div>
-                <div class="system-tag">V1.4.2 // SECURITY AUDIT</div>
+                <div class="clock-display" id="realtime-clock">00:00:00</div>
+                <a href="/logout" class="btn btn-secondary w-full" style="padding: 10px; font-size: 0.85rem;"><i class="fa-solid fa-right-from-bracket"></i> Exit Session</a>
             </div>
         </aside>
-
-        <!-- Main Workspace -->
+        
         <main class="main-content">
-            
-            <!-- Global Top Bar -->
             <header class="topbar">
-                <div class="topbar-left">
-                    <button id="toggle-sidebar" class="btn-icon"><i class="fa-solid fa-bars"></i></button>
-                    <h3 id="current-section-title">Operations Control Center</h3>
-                </div>
-                <div class="topbar-right">
-                    <button class="btn btn-secondary border-cyan" onclick="window.location.href='/logout'"><i class="fa-solid fa-right-from-bracket"></i> Exit Portal</button>
-                </div>
+                <button class="menu-toggle" id="menu-toggle"><i class="fa-solid fa-bars"></i></button>
+                <h1 class="topbar-title" id="current-section-title">Operations Control Center</h1>
+                <div class="badge badge-success"><span class="pulse-dot" style="margin-right:6px"></span> System Online</div>
             </header>
-
-            <!-- Dashboard Sections -->
-            <div class="workspace-area">
+            
+            <div class="workspace">
                 
-                <!-- SECTION: HOME / SUMMARY -->
+                <!-- SECTION: HOME -->
                 <section id="section-home" class="tab-content active">
-                    
-                    <!-- Stats Grid -->
                     <div class="stats-grid">
-                        <div class="glass-card stat-card border-left-cyan">
+                        <div class="glass-card stat-card slide-up stagger-1">
                             <div class="stat-info">
-                                <span class="stat-label">TOTAL CYBER SCANS</span>
-                                <h3 class="stat-value" id="stat-total">0</h3>
+                                <span class="stat-label">Total Scans</span>
+                                <span class="stat-value" id="stat-total">0</span>
                             </div>
-                            <div class="stat-icon cyan-bg-trans"><i class="fa-solid fa-satellite-dish"></i></div>
+                            <div class="stat-icon b-blue"><i class="fa-solid fa-satellite-dish"></i></div>
                         </div>
-                        <div class="glass-card stat-card border-left-red">
+                        <div class="glass-card stat-card slide-up stagger-2">
                             <div class="stat-info">
-                                <span class="stat-label">HIGH RISKS LOCATED</span>
-                                <h3 class="stat-value" id="stat-high">0</h3>
+                                <span class="stat-label">High Risks</span>
+                                <span class="stat-value" id="stat-high">0</span>
                             </div>
-                            <div class="stat-icon red-bg-trans"><i class="fa-solid fa-skull-crossbones"></i></div>
+                            <div class="stat-icon b-red"><i class="fa-solid fa-skull-crossbones"></i></div>
                         </div>
-                        <div class="glass-card stat-card border-left-purple">
+                        <div class="glass-card stat-card slide-up stagger-3">
                             <div class="stat-info">
-                                <span class="stat-label">MEDIUM RISKS MAPPED</span>
-                                <h3 class="stat-value" id="stat-medium">0</h3>
+                                <span class="stat-label">Medium Risks</span>
+                                <span class="stat-value" id="stat-medium">0</span>
                             </div>
-                            <div class="stat-icon purple-bg-trans"><i class="fa-solid fa-triangle-exclamation"></i></div>
+                            <div class="stat-icon b-yellow"><i class="fa-solid fa-triangle-exclamation"></i></div>
                         </div>
-                        <div class="glass-card stat-card border-left-yellow">
+                        <div class="glass-card stat-card slide-up stagger-4">
                             <div class="stat-info">
-                                <span class="stat-label">AVERAGE THREAT SCORE</span>
-                                <h3 class="stat-value" id="stat-score">0</h3>
+                                <span class="stat-label">Avg Threat Score</span>
+                                <span class="stat-value" id="stat-score">0%</span>
                             </div>
-                            <div class="stat-icon yellow-bg-trans"><i class="fa-solid fa-gauge-high"></i></div>
+                            <div class="stat-icon b-indigo"><i class="fa-solid fa-gauge-high"></i></div>
                         </div>
                     </div>
-
-                    <!-- Operations Matrix (Widgets) -->
-                    <div class="ops-grid">
-                        <!-- Chart Widget -->
-                        <div class="glass-card chart-container-card">
-                            <h4>Threat Distribution Index</h4>
-                            <div class="chart-wrapper">
+                    
+                    <div class="grid-2 slide-up stagger-4">
+                        <div class="glass-card panel">
+                            <div class="panel-header">Threat Distribution Index</div>
+                            <div class="chart-container">
                                 <canvas id="threatDistributionChart"></canvas>
                             </div>
                         </div>
-                        
-                        <!-- Terminal Log Widget -->
-                        <div class="glass-card terminal-card">
-                            <div class="terminal-header">
-                                <div class="terminal-dots">
-                                    <span class="dot-red"></span>
-                                    <span class="dot-yellow"></span>
-                                    <span class="dot-green"></span>
-                                </div>
-                                <span class="terminal-title share-tech-mono">SYSTEM_ACTIVITY_FEED.log</span>
-                            </div>
-                            <div class="terminal-body share-tech-mono" id="activity-log-feed">
-                                <p class="text-green">[INFO] ReconX kernel initiated successfully.</p>
-                                <p class="text-cyan">[SEC] Listening on operational socket API endpoints.</p>
+                        <div class="glass-card panel">
+                            <div class="panel-header">System Activity Feed</div>
+                            <div class="activity-feed" id="activity-log-feed">
+                                <!-- Logs populated by JS -->
                             </div>
                         </div>
                     </div>
-
-                    <!-- Quick Tools Grid -->
-                    <div class="quick-tools-section">
-                        <h4>RECON MODULE CONTROLLERS</h4>
-                        <div class="tools-grid">
-                            <div class="glass-card tool-shortcut" onclick="switchTab('domain')">
-                                <i class="fa-solid fa-globe shortcut-icon text-cyan"></i>
-                                <h5>Website Intelligence</h5>
-                                <p>Extract WHOIS, DNS mappings, SSL records, and HTTP headers footprint.</p>
-                            </div>
-                            <div class="glass-card tool-shortcut" onclick="switchTab('username')">
-                                <i class="fa-solid fa-fingerprint shortcut-icon text-purple"></i>
-                                <h5>Identity Check</h5>
-                                <p>Ethically trace public usernames and active social footpaths.</p>
-                            </div>
-                            <div class="glass-card tool-shortcut" onclick="switchTab('network')">
-                                <i class="fa-solid fa-terminal shortcut-icon text-red"></i>
-                                <h5>Port Sweep</h5>
-                                <p>Run ultra-fast socket diagnostics on target host endpoints.</p>
-                            </div>
-                            <div class="glass-card tool-shortcut" onclick="switchTab('ip-intel')">
-                                <i class="fa-solid fa-map-location-dot shortcut-icon text-yellow"></i>
-                                <h5>IP Geolocation</h5>
-                                <p>Decode ISP nodes, regional geo-bounds, and Autonomous Systems.</p>
-                            </div>
-                        </div>
-                    </div>
-
                 </section>
-
-                <!-- SECTION: WEBSITE INTELLIGENCE -->
+                
+                <!-- SECTION: DOMAIN -->
                 <section id="section-domain" class="tab-content">
-                    <div class="glass-card input-panel border-left-cyan">
-                        <h4>Website / Domain Target Scope</h4>
-                        <p class="subtitle">Extract DNS layouts, SSL parameters, registered registry dates, and server technology headers.</p>
-                        <form id="domain-recon-form" class="cyber-form">
+                    <div class="tool-header">
+                        <h2><i class="fa-solid fa-globe text-gradient"></i> Website Intelligence</h2>
+                        <p class="text-muted">Extract DNS records, SSL certificates, WHOIS data, and server fingerprints instantly.</p>
+                    </div>
+                    
+                    <div class="glass-card panel">
+                        <form id="domain-recon-form">
                             <div class="input-group">
-                                <i class="fa-solid fa-globe input-icon"></i>
-                                <input type="text" id="domain-target-input" placeholder="e.g. google.com or github.com" required>
-                                <button type="submit" class="btn btn-glow btn-primary"><i class="fa-solid fa-magnifying-glass"></i> RUN INTELLIGENCE</button>
+                                <i class="fa-solid fa-globe form-icon"></i>
+                                <input type="text" id="domain-target-input" class="form-control has-icon" placeholder="Enter domain (e.g. google.com)" required>
                             </div>
+                            <button type="submit" class="btn btn-primary"><i class="fa-solid fa-magnifying-glass"></i> Analyze Target</button>
                         </form>
                     </div>
-
-                    <!-- Loader -->
-                    <div class="glass-card scanning-overlay hidden" id="domain-loader">
-                        <div class="scanner-anim"></div>
-                        <h4 class="share-tech-mono">RUNNING DOMAIN INTELLIGENCE AUDIT...</h4>
-                        <p class="share-tech-mono text-cyan">Querying WHOIS records & SSL handshakes...</p>
+                    
+                    <div id="domain-loader" class="glass-card panel text-center mt-4 hidden">
+                        <div class="spinner mx-auto mb-3" style="margin: 0 auto;"></div>
+                        <h4>Running Intelligence Scan...</h4>
+                        <p class="text-muted mono-text mt-2">Querying DNS & WHOIS records</p>
                     </div>
-
-                    <!-- Results Panel -->
-                    <div class="scan-results-container hidden" id="domain-results-area">
-                        <div class="results-header glass-card">
-                            <div class="results-header-info">
-                                <h3 id="res-domain-name">TARGET.COM</h3>
-                                <p class="share-tech-mono"><i class="fa-solid fa-server"></i> IP Resolved: <span id="res-domain-ip" class="text-cyan">0.0.0.0</span></p>
+                    
+                    <div id="domain-results-area" class="glass-card mt-4 hidden p-0" style="padding:0; overflow:hidden;">
+                        <div class="results-header">
+                            <div>
+                                <h3 id="res-domain-name" style="font-size:1.5rem; margin-bottom:8px;">TARGET</h3>
+                                <div class="badge badge-info"><i class="fa-solid fa-server" style="margin-right:6px"></i> <span id="res-domain-ip">-</span></div>
                             </div>
-                            <div class="threat-meter-widget">
-                                <div class="threat-meter-title">Threat Assessment Score</div>
-                                <div class="threat-score-flex">
-                                    <div class="threat-score-badge" id="res-domain-badge">LOW</div>
-                                    <div class="threat-value" id="res-domain-score">10%</div>
-                                </div>
+                            <div style="text-align:right;">
+                                <div class="badge badge-danger" id="res-domain-badge">HIGH</div>
+                                <div style="font-size:2rem; font-weight:800; color:var(--text-primary); margin-top:4px;" id="res-domain-score">0%</div>
+                                <div class="stat-label">Threat Score</div>
                             </div>
                         </div>
-
-                        <div class="results-details-grid">
-                            <!-- Technology & Server -->
-                            <div class="glass-card detail-sub-card">
-                                <h5><i class="fa-solid fa-microchip text-cyan"></i> Technology Surface</h5>
-                                <table class="cyber-table">
-                                    <tr><td>Server Engine</td><td id="res-domain-server" class="text-white">-</td></tr>
-                                    <tr><td>CMS Detected</td><td id="res-domain-cms" class="text-white">-</td></tr>
-                                    <tr><td>Integrated Tech Stack</td><td id="res-domain-tech" class="text-cyan">-</td></tr>
-                                </table>
+                        
+                        <div class="grid-detail">
+                            <div>
+                                <div class="detail-group"><div class="detail-label">Server</div><div class="detail-value" id="res-domain-server">-</div></div>
+                                <div class="detail-group"><div class="detail-label">CMS</div><div class="detail-value" id="res-domain-cms">-</div></div>
+                                <div class="detail-group"><div class="detail-label">Technologies</div><div class="detail-value text-gradient" id="res-domain-tech">-</div></div>
                             </div>
-
-                            <!-- SSL Details -->
-                            <div class="glass-card detail-sub-card">
-                                <h5><i class="fa-solid fa-lock text-purple"></i> SSL Handshake Credentials</h5>
-                                <table class="cyber-table">
-                                    <tr><td>Certificate Valid</td><td id="res-ssl-valid" class="text-green">Valid</td></tr>
-                                    <tr><td>Issuer Node</td><td id="res-ssl-issuer" class="text-white">-</td></tr>
-                                    <tr><td>Validity Range</td><td id="res-ssl-dates" class="text-white">-</td></tr>
-                                </table>
+                            <div>
+                                <div class="detail-group"><div class="detail-label">SSL Status</div><div class="detail-value" id="res-ssl-valid" style="color:var(--status-success);">-</div></div>
+                                <div class="detail-group"><div class="detail-label">SSL Issuer</div><div class="detail-value" id="res-ssl-issuer">-</div></div>
+                                <div class="detail-group"><div class="detail-label">SSL Validity</div><div class="detail-value mono-text" id="res-ssl-dates" style="font-size:0.9rem">-</div></div>
                             </div>
-
-                            <!-- WHOIS -->
-                            <div class="glass-card detail-sub-card span-2">
-                                <h5><i class="fa-solid fa-address-book text-yellow"></i> Registrar WHOIS Footprints</h5>
-                                <table class="cyber-table">
-                                    <thead>
-                                        <tr><th>Property</th><th>Details / Owner Info</th></tr>
-                                    </thead>
-                                    <tbody>
-                                        <tr><td>Domain Registrar</td><td id="res-whois-registrar" class="text-white">-</td></tr>
-                                        <tr><td>Registered Creation</td><td id="res-whois-created" class="text-white">-</td></tr>
-                                        <tr><td>Domain Expiration</td><td id="res-whois-expires" class="text-white">-</td></tr>
-                                        <tr><td>Contact Emails</td><td id="res-whois-emails" class="text-cyan">-</td></tr>
-                                    </tbody>
-                                </table>
+                            <div>
+                                <div class="detail-group"><div class="detail-label">Registrar</div><div class="detail-value" id="res-whois-registrar">-</div></div>
+                                <div class="detail-group"><div class="detail-label">Creation Date</div><div class="detail-value mono-text" id="res-whois-created" style="font-size:0.9rem">-</div></div>
                             </div>
-
-                            <!-- Security Headers -->
-                            <div class="glass-card detail-sub-card span-2">
-                                <h5><i class="fa-solid fa-shield text-green"></i> Security Headers Audit</h5>
-                                <div class="headers-list" id="res-headers-list"></div>
+                            <div>
+                                <div class="detail-group"><div class="detail-label">Expiration Date</div><div class="detail-value mono-text" id="res-whois-expires" style="font-size:0.9rem">-</div></div>
+                                <div class="detail-group"><div class="detail-label">Contact Emails</div><div class="detail-value text-gradient" id="res-whois-emails">-</div></div>
+                            </div>
+                        </div>
+                        
+                        <div style="padding: 24px; border-top: 1px solid var(--border-color);">
+                            <div class="detail-label mb-3">Security Headers</div>
+                            <div id="res-headers-list" style="display:flex; flex-direction:column; gap:8px;">
+                                <!-- populated by JS -->
                             </div>
                         </div>
                     </div>
                 </section>
-
-                <!-- SECTION: USERNAME INTELLIGENCE -->
+                
+                <!-- SECTION: USERNAME -->
                 <section id="section-username" class="tab-content">
-                    <div class="glass-card input-panel border-left-purple">
-                        <h4>Identity & Username Trace</h4>
-                        <p class="subtitle">Enter a <b>username</b> (e.g. <code>leomessi</code>) <em>or a real name</em> (e.g. <code>Lionel Messi</code>) — ReconX will resolve the correct handles across all platforms automatically.</p>
-                        <form id="username-recon-form" class="cyber-form">
+                    <div class="tool-header">
+                        <h2><i class="fa-solid fa-fingerprint text-gradient"></i> Identity Trace</h2>
+                        <p class="text-muted">Track public profiles across platforms to build a comprehensive digital footprint.</p>
+                    </div>
+                    
+                    <div class="glass-card panel">
+                        <form id="username-recon-form">
                             <div class="input-group">
-                                <i class="fa-solid fa-user-tag input-icon"></i>
-                                <input type="text" id="username-target-input" placeholder="e.g. leomessi  OR  Lionel Messi" required>
-                                <button type="submit" class="btn btn-glow btn-purple"><i class="fa-solid fa-satellite"></i> LAUNCH DISCOVERY</button>
+                                <i class="fa-solid fa-user-tag form-icon"></i>
+                                <input type="text" id="username-target-input" class="form-control has-icon" placeholder="Enter username (e.g. leomessi)" required>
                             </div>
+                            <button type="submit" class="btn btn-primary"><i class="fa-solid fa-magnifying-glass"></i> Trace Identity</button>
                         </form>
                     </div>
-
-                    <!-- Loader -->
-                    <div class="glass-card scanning-overlay hidden" id="username-loader">
-                        <div class="scanner-anim bg-purple"></div>
-                        <h4 class="share-tech-mono">CONDUCTING ETHICAL IDENTITY & SOCIAL SWEEP...</h4>
-                        <p class="share-tech-mono text-purple">Querying public HTTP endpoints...</p>
-                        <p class="share-tech-mono" style="font-size:0.8rem;margin-top:6px;opacity:0.7;">(Real-name searches may take a few extra seconds to resolve handles)</p>
+                    
+                    <div id="username-loader" class="glass-card panel text-center mt-4 hidden">
+                        <div class="spinner mx-auto mb-3" style="margin: 0 auto;"></div>
+                        <h4>Scanning Platforms...</h4>
+                        <p class="text-muted mono-text mt-2 text-purple">Querying 8+ social endpoints</p>
                     </div>
-
-                    <!-- Result Grid -->
-                    <div class="scan-results-container hidden" id="username-results-area">
-                        <div class="results-header glass-card">
+                    
+                    <div id="username-results-area" class="glass-card mt-4 hidden p-0" style="padding:0; overflow:hidden;">
+                        <div class="results-header">
                             <div>
-                                <h3 id="res-username-target">OPERATOR_ID</h3>
-                                <p class="share-tech-mono text-purple"><i class="fa-solid fa-triangle-exclamation"></i> Public footprints discovered: <span id="res-username-found">0</span> / 8 platforms</p>
+                                <h3 id="res-username-target" style="font-size:1.5rem; margin-bottom:8px;">TARGET</h3>
+                                <div class="badge badge-info">Found on <span id="res-username-found" style="margin: 0 4px; font-weight:800;">0</span> platforms</div>
                             </div>
-                            <div class="threat-meter-widget">
-                                <div class="threat-meter-title">Digital Profile Density</div>
-                                <div class="threat-score-flex">
-                                    <div class="threat-score-badge bg-purple" id="res-username-badge">MEDIUM</div>
-                                    <div class="threat-value" id="res-username-score">40%</div>
-                                </div>
+                            <div style="text-align:right;">
+                                <div class="badge badge-warning" id="res-username-badge">MEDIUM</div>
+                                <div style="font-size:2rem; font-weight:800; color:var(--text-primary); margin-top:4px;" id="res-username-score">0%</div>
+                                <div class="stat-label">Exposure Score</div>
                             </div>
                         </div>
-                        
-                        <div class="username-profile-cards" id="res-username-list"></div>
-                        
-                        <div class="glass-card disclaimer-card margin-top-20">
-                            <p class="share-tech-mono"><i class="fa-solid fa-circle-exclamation text-yellow"></i> <b>OSINT ETHICS RULE:</b> Results are strictly parsed from publicly visible profiles. Cyber ReconX never performs illegal access attempts or system hacks.</p>
+                        <div style="padding: 24px;">
+                            <div id="res-username-list" style="display:grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap:16px;">
+                                <!-- populated by JS -->
+                            </div>
                         </div>
                     </div>
                 </section>
-
-                <!-- SECTION: PORT SWEEPER -->
+                
+                <!-- SECTION: NETWORK -->
                 <section id="section-network" class="tab-content">
-                    <div class="glass-card input-panel border-left-red">
-                        <h4>TCP Socket Port Sweeper</h4>
-                        <p class="subtitle">Execute multithreaded network checks to pinpoint active services, banners, and exposure score.</p>
-                        <form id="network-recon-form" class="cyber-form">
-                            <div class="input-row">
-                                <div class="input-group">
-                                    <i class="fa-solid fa-network-wired input-icon"></i>
-                                    <input type="text" id="network-target-input" placeholder="e.g. 127.0.0.1 or localhost" required>
+                    <div class="tool-header">
+                        <h2><i class="fa-solid fa-network-wired text-gradient"></i> Port Sweeper</h2>
+                        <p class="text-muted">Multithreaded TCP scanner with service banner detection and risk scoring.</p>
+                    </div>
+                    
+                    <div class="glass-card panel">
+                        <form id="network-recon-form">
+                            <div style="display:flex; gap:16px; margin-bottom:20px; flex-wrap:wrap;">
+                                <div class="input-group" style="flex:1; min-width:250px; margin-bottom:0;">
+                                    <i class="fa-solid fa-network-wired form-icon"></i>
+                                    <input type="text" id="network-target-input" class="form-control has-icon" placeholder="Enter IP or Domain" required>
                                 </div>
-                                <div class="select-group">
-                                    <select id="network-mode-select">
-                                        <option value="fast">Fast Scan (Common Tech Ports)</option>
-                                        <option value="full">Deep Scan (Ports 1 to 1024)</option>
-                                    </select>
-                                    <button type="submit" class="btn btn-glow btn-red"><i class="fa-solid fa-radar"></i> RUN PORT DIAGNOSTICS</button>
-                                </div>
+                                <select id="network-mode-select" class="form-control" style="width:auto; min-width:180px;">
+                                    <option value="fast">Fast Scan (Common)</option>
+                                    <option value="full">Deep Scan (1-1024)</option>
+                                </select>
                             </div>
+                            <button type="submit" class="btn btn-primary"><i class="fa-solid fa-radar"></i> Run Sweep</button>
                         </form>
                     </div>
-
-                    <!-- Loader -->
-                    <div class="glass-card scanning-overlay hidden" id="network-loader">
-                        <div class="scanner-anim bg-red"></div>
-                        <h4 class="share-tech-mono">RUNNING ACTIVE PORT SWEEP...</h4>
-                        <div class="terminal-logs-box share-tech-mono" id="network-live-logs">
-                            <p>[*] Establishing thread pool...</p>
-                        </div>
+                    
+                    <div id="network-loader" class="glass-card panel text-center mt-4 hidden">
+                        <div class="spinner mx-auto mb-3" style="margin: 0 auto;"></div>
+                        <h4>Sweeping Ports...</h4>
+                        <div id="network-live-logs" class="activity-feed" style="height:120px; margin-top:16px; text-align:left; background:rgba(0,0,0,0.3);"></div>
                     </div>
-
-                    <!-- Results -->
-                    <div class="scan-results-container hidden" id="network-results-area">
-                        <div class="results-header glass-card">
+                    
+                    <div id="network-results-area" class="glass-card mt-4 hidden p-0" style="padding:0; overflow:hidden;">
+                        <div class="results-header">
                             <div>
-                                <h3 id="res-network-target">127.0.0.1</h3>
-                                <p class="share-tech-mono"><i class="fa-solid fa-network-wired"></i> Scan mode: <span id="res-network-mode" class="text-red">Fast Sweep</span> // Duration: <span id="res-network-duration">0.2</span>s</p>
+                                <h3 id="res-network-target" style="font-size:1.5rem; margin-bottom:8px;">TARGET</h3>
+                                <div class="badge badge-info">Mode: <span id="res-network-mode">Fast</span> | <span id="res-network-duration">0.0</span>s</div>
                             </div>
-                            <div class="threat-meter-widget">
-                                <div class="threat-meter-title">Port Exposure Severity</div>
-                                <div class="threat-score-flex">
-                                    <div class="threat-score-badge bg-red" id="res-network-badge">HIGH</div>
-                                    <div class="threat-value" id="res-network-score">75%</div>
-                                </div>
+                            <div style="text-align:right;">
+                                <div class="badge badge-danger" id="res-network-badge">HIGH</div>
+                                <div style="font-size:2rem; font-weight:800; color:var(--text-primary); margin-top:4px;" id="res-network-score">0%</div>
+                                <div class="stat-label">Vulnerability Score</div>
                             </div>
                         </div>
-
-                        <div class="glass-card margin-top-20">
-                            <h5>Open Ports & Services Located</h5>
-                            <div class="responsive-table-wrapper">
-                                <table class="cyber-table full-width">
-                                    <thead>
-                                        <tr>
-                                            <th>Port Number</th>
-                                            <th>Service Protocol</th>
-                                            <th>Service Banner Info</th>
-                                            <th>Status</th>
-                                            <th>Exposure Level</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody id="res-network-ports-table"></tbody>
-                                </table>
-                            </div>
-                        </div>
-                    </div>
-                </section>
-
-                <!-- SECTION: IP GEOLOCATION -->
-                <section id="section-ip-intel" class="tab-content">
-                    <div class="glass-card input-panel border-left-yellow">
-                        <h4>IP Geolocation & Threat Diagnostics</h4>
-                        <p class="subtitle">Obtain global physical coordinates, regional node coordinates, and Autonomous System Numbers (ASN).</p>
-                        <form id="ip-recon-form" class="cyber-form">
-                            <div class="input-group">
-                                <i class="fa-solid fa-map-location-dot input-icon"></i>
-                                <input type="text" id="ip-target-input" placeholder="e.g. 8.8.8.8" required>
-                                <button type="submit" class="btn btn-glow btn-yellow"><i class="fa-solid fa-location-crosshairs"></i> GEO-LOCATE TARGET</button>
-                            </div>
-                        </form>
-                    </div>
-
-                    <!-- Loader -->
-                    <div class="glass-card scanning-overlay hidden" id="ip-loader">
-                        <div class="scanner-anim bg-yellow"></div>
-                        <h4 class="share-tech-mono">MAP GEOMETRY SYNCING IN PROGRESS...</h4>
-                        <p class="share-tech-mono text-yellow">Calculating regional network distance...</p>
-                    </div>
-
-                    <!-- Results -->
-                    <div class="scan-results-container hidden" id="ip-results-area">
-                        <div class="results-header glass-card">
-                            <div>
-                                <h3 id="res-ip-address">8.8.8.8</h3>
-                                <p class="share-tech-mono"><i class="fa-solid fa-server"></i> ISP Provider: <span id="res-ip-isp" class="text-yellow">-</span></p>
-                            </div>
-                            <div class="threat-meter-widget">
-                                <div class="threat-meter-title">Structural Risk Score</div>
-                                <div class="threat-score-flex">
-                                    <div class="threat-score-badge bg-yellow" id="res-ip-badge">LOW</div>
-                                    <div class="threat-value" id="res-ip-score">15%</div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="results-details-grid">
-                            <!-- Geography -->
-                            <div class="glass-card detail-sub-card">
-                                <h5><i class="fa-solid fa-earth-americas text-yellow"></i> Geolocation Profile</h5>
-                                <table class="cyber-table">
-                                    <tr><td>Country / Code</td><td id="res-ip-country" class="text-white">-</td></tr>
-                                    <tr><td>Region / City</td><td id="res-ip-city" class="text-white">-</td></tr>
-                                    <tr><td>Zip Code</td><td id="res-ip-zip" class="text-white">-</td></tr>
-                                </table>
-                            </div>
-
-                            <!-- Telemetry -->
-                            <div class="glass-card detail-sub-card">
-                                <h5><i class="fa-solid fa-tower-cell text-cyan"></i> Network Telemetry</h5>
-                                <table class="cyber-table">
-                                    <tr><td>Reverse Hostname</td><td id="res-ip-rdns" class="text-white truncate-text">-</td></tr>
-                                    <tr><td>Timezone</td><td id="res-ip-timezone" class="text-white">-</td></tr>
-                                    <tr><td>Coordinates</td><td id="res-ip-coords" class="text-cyan">-</td></tr>
-                                </table>
-                            </div>
-
-                            <!-- ASN / Network -->
-                            <div class="glass-card detail-sub-card span-2">
-                                <h5><i class="fa-solid fa-sitemap text-purple"></i> Autonomous System & Network Registry</h5>
-                                <table class="cyber-table">
-                                    <thead>
-                                        <tr><th>Field</th><th>Value</th></tr>
-                                    </thead>
-                                    <tbody>
-                                        <tr><td>ASN Number</td><td id="res-ip-asn" class="text-white">-</td></tr>
-                                        <tr><td>AS Organisation</td><td id="res-ip-org" class="text-white">-</td></tr>
-                                        <tr><td>ISP Provider</td><td id="res-ip-isp2" class="text-cyan">-</td></tr>
-                                        <tr><td>VPN / Proxy / Tor</td><td id="res-ip-vpn" class="text-yellow">-</td></tr>
-                                    </tbody>
-                                </table>
-                            </div>
-                        </div>
-                    </div>
-                </section>
-
-                <!-- SECTION: HISTORY RECORDS -->
-                <section id="section-history" class="tab-content">
-                    <div class="glass-card input-panel">
-                        <h4><i class="fa-solid fa-clock-rotate-left text-cyan"></i> Scan History Records</h4>
-                        <p class="subtitle">Audit trail of all previous reconnaissance operations — searchable and exportable.</p>
-                        <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;">
-                            <input type="text" id="history-search-input" class="history-search" placeholder="Filter by target, type, or threat level...">
-                            <button class="btn btn-secondary" onclick="loadScanHistory()"><i class="fa-solid fa-rotate-right"></i> Refresh</button>
-                        </div>
-                    </div>
-
-                    <div class="glass-card margin-top-20">
-                        <div class="responsive-table-wrapper">
-                            <table class="cyber-table full-width" id="history-table">
+                        <div style="overflow-x:auto;">
+                            <table class="data-table">
                                 <thead>
                                     <tr>
-                                        <th>Timestamp</th>
-                                        <th>Scan Type</th>
-                                        <th>Target</th>
-                                        <th>Threat Score</th>
-                                        <th>Threat Level</th>
-                                        <th>Actions</th>
+                                        <th>PORT</th>
+                                        <th>SERVICE</th>
+                                        <th>BANNER</th>
+                                        <th>STATUS</th>
+                                        <th>RISK</th>
                                     </tr>
                                 </thead>
-                                <tbody id="history-table-body">
-                                    <tr>
-                                        <td colspan="6" class="text-center share-tech-mono" style="padding:30px;color:rgba(255,255,255,0.3);">
-                                            <i class="fa-solid fa-database"></i> No scan records found. Run a module to begin.
-                                        </td>
-                                    </tr>
+                                <tbody id="res-network-ports-table">
+                                    <!-- populated by js -->
                                 </tbody>
                             </table>
                         </div>
                     </div>
                 </section>
-
-            </div><!-- /workspace-area -->
+                
+                <!-- SECTION: IP INTEL -->
+                <section id="section-ip-intel" class="tab-content">
+                    <div class="tool-header">
+                        <h2><i class="fa-solid fa-map-location-dot text-gradient"></i> IP Geolocation</h2>
+                        <p class="text-muted">Pinpoint coordinates, ISP metadata, and ASN details for any network node.</p>
+                    </div>
+                    
+                    <div class="glass-card panel">
+                        <form id="ip-recon-form">
+                            <div class="input-group">
+                                <i class="fa-solid fa-location-crosshairs form-icon"></i>
+                                <input type="text" id="ip-target-input" class="form-control has-icon" placeholder="Enter IP address (e.g. 8.8.8.8)" required>
+                            </div>
+                            <button type="submit" class="btn btn-primary"><i class="fa-solid fa-map-location-dot"></i> Geo-locate</button>
+                        </form>
+                    </div>
+                    
+                    <div id="ip-loader" class="glass-card panel text-center mt-4 hidden">
+                        <div class="spinner mx-auto mb-3" style="margin: 0 auto;"></div>
+                        <h4>Tracing IP...</h4>
+                    </div>
+                    
+                    <div id="ip-results-area" class="glass-card mt-4 hidden p-0" style="padding:0; overflow:hidden;">
+                        <div class="results-header">
+                            <div>
+                                <h3 id="res-ip-address" style="font-size:1.5rem; margin-bottom:8px;">8.8.8.8</h3>
+                                <div class="badge badge-info" id="res-ip-isp">-</div>
+                                <div class="badge badge-warning" id="res-ip-vpn" style="margin-left:8px;">-</div>
+                            </div>
+                            <div style="text-align:right;">
+                                <div class="badge badge-success" id="res-ip-badge">LOW</div>
+                                <div style="font-size:2rem; font-weight:800; color:var(--text-primary); margin-top:4px;" id="res-ip-score">0%</div>
+                            </div>
+                        </div>
+                        <div class="grid-detail">
+                            <div>
+                                <div class="detail-group"><div class="detail-label">ISP / Organization</div><div class="detail-value" id="res-ip-isp2">-</div></div>
+                                <div class="detail-group"><div class="detail-label">Organization</div><div class="detail-value" id="res-ip-org">-</div></div>
+                                <div class="detail-group"><div class="detail-label">ASN</div><div class="detail-value text-gradient" id="res-ip-asn">-</div></div>
+                            </div>
+                            <div>
+                                <div class="detail-group"><div class="detail-label">Country</div><div class="detail-value" id="res-ip-country">-</div></div>
+                                <div class="detail-group"><div class="detail-label">City / Region</div><div class="detail-value" id="res-ip-city">-</div></div>
+                                <div class="detail-group"><div class="detail-label">Coordinates</div><div class="detail-value mono-text" id="res-ip-coords">-</div></div>
+                            </div>
+                            <div>
+                                <div class="detail-group"><div class="detail-label">ZIP / Postal</div><div class="detail-value" id="res-ip-zip">-</div></div>
+                                <div class="detail-group"><div class="detail-label">Timezone</div><div class="detail-value mono-text" id="res-ip-timezone">-</div></div>
+                                <div class="detail-group"><div class="detail-label">Reverse DNS</div><div class="detail-value mono-text" id="res-ip-rdns" style="word-break:break-all;">-</div></div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+                
+                <!-- SECTION: HISTORY -->
+                <section id="section-history" class="tab-content">
+                    <div class="tool-header">
+                        <h2><i class="fa-solid fa-clock-rotate-left text-gradient"></i> History Records</h2>
+                        <p class="text-muted">Database of all previous intelligence gathering operations.</p>
+                    </div>
+                    
+                    <div class="glass-card panel p-0" style="padding:0; overflow:hidden;">
+                        <div style="padding: 24px; border-bottom: 1px solid var(--border-color);">
+                            <div class="input-group" style="margin:0;">
+                                <i class="fa-solid fa-search form-icon"></i>
+                                <input type="text" id="history-search-input" class="form-control has-icon" placeholder="Search logs...">
+                            </div>
+                        </div>
+                        <div style="overflow-x:auto;">
+                            <table class="data-table">
+                                <thead>
+                                    <tr>
+                                        <th>Target</th>
+                                        <th>Type</th>
+                                        <th>Timestamp</th>
+                                        <th>Risk</th>
+                                        <th>Summary</th>
+                                        <th>Action</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="history-table-body">
+                                    <!-- Populated by JS -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </section>
+                
+            </div>
         </main>
     </div>
 
     <script src="/static/js/app.js"></script>
     <script>
-        document.getElementById('toggle-sidebar').addEventListener('click', () => {
-            document.querySelector('.sidebar').classList.add('mobile-open');
-            document.getElementById('sidebarOverlay').classList.add('active');
-            document.body.style.overflow = 'hidden';
+        // Sidebar Mobile Toggle
+        const sidebar = document.getElementById('sidebar');
+        const overlay = document.getElementById('mobile-overlay');
+        
+        document.getElementById('menu-toggle').addEventListener('click', () => {
+            sidebar.classList.add('open');
+            overlay.classList.add('show');
         });
-        document.getElementById('sidebarOverlay').addEventListener('click', () => {
-            document.querySelector('.sidebar').classList.remove('mobile-open');
-            document.getElementById('sidebarOverlay').classList.remove('active');
-            document.body.style.overflow = '';
+        
+        overlay.addEventListener('click', () => {
+            sidebar.classList.remove('open');
+            overlay.classList.remove('show');
         });
+        
         document.querySelectorAll('.nav-item').forEach(item => {
             item.addEventListener('click', () => {
-                if(window.innerWidth <= 900) {
-                    document.querySelector('.sidebar').classList.remove('mobile-open');
-                    document.getElementById('sidebarOverlay').classList.remove('active');
-                    document.body.style.overflow = '';
+                if (window.innerWidth <= 768) {
+                    sidebar.classList.remove('open');
+                    overlay.classList.remove('show');
                 }
             });
         });

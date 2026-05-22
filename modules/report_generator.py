@@ -97,7 +97,16 @@ def generate_pdf_report(scan_data, filename="recon_report.pdf"):
     
     # Recommendations
     story.append(Paragraph("CYBER DEFENSE & REMEDIATION STEPS", header_style))
-    recs = get_recommendations(scan_data.get("threat_level", "Low"))
+    if scan_data.get("scan_type") == "Reverse Image Intel":
+        recs = [
+            "Use metadata scrubbers (e.g., exiftool) to purge EXIF tags from public images.",
+            "Disable GPS/location tagging in camera settings when taking sensitive operational photos.",
+            "Watermark original assets to prevent visually matching clones from being registered in other domains.",
+            "Audit public repositories (GitHub, Unsplash, Flickr) to verify image footprint leaks are authorized."
+        ]
+    else:
+        recs = get_recommendations(scan_data.get("threat_level", "Low"))
+        
     for rec in recs:
         story.append(Paragraph(f"• {rec}", body_style))
         

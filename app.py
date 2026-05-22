@@ -16,6 +16,9 @@ from modules.username_checker import search_username
 from modules.network_scanner import run_port_scan
 from modules.ip_analyzer import analyze_ip
 from modules.report_generator import generate_pdf_report
+from modules.reverse_image import run_reverse_image_investigation
+import uuid
+import time
 
 app = Flask(__name__)
 app.secret_key = "cyber_reconx_secure_session_key_secret_2026"
@@ -26,6 +29,15 @@ app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
 app.config['SESSION_COOKIE_HTTPONLY'] = True
 
 CORS(app)
+
+# --- REVERSE IMAGE UPLOAD CONFIGURATION ---
+UPLOAD_FOLDER = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'static', 'images', 'uploads')
+os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
+ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'webp'}
+
+def allowed_file(filename):
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
 # Ensure database is configured
 init_db()
@@ -292,6 +304,42 @@ def api_ip():
     add_scan(session['user_id'], "IP Intelligence", target, res['threat_level'], res['threat_score'], summary, details)
     
     return jsonify(res)
+
+@app.route('/api/reverse-image', methods=['POST'])
+@login_required
+def api_reverse_image():
+    if 'image' not in request.files:
+        return jsonify({"error": "No image file provided in payload"}), 400
+        
+    file = request.files['image']
+    if file.filename == '':
+        return jsonify({"error": "No selected image file"}), 400
+        
+    if file and allowed_file(file.filename):
+        orig_filename = file.filename
+        ext = orig_filename.rsplit('.', 1)[1].lower()
+        filename = f"{uuid.uuid4().hex}_{int(time.time())}.{ext}"
+        filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+        
+        file.save(filepath)
+        
+        relative_path = f"/static/images/uploads/{filename}"
+        
+        try:
+            res = run_reverse_image_investigation(filepath, orig_filename)
+            res["image_url"] = relative_path
+            
+            # Save scan record to database
+            summary = f"Analyzed uploaded image {orig_filename}. Perceptual dHash: {res['fingerprint']}. Camera: {res['metadata']['camera_model']}. GPS Coords: {res['metadata']['gps_coords']}."
+            details = json.dumps(res)
+            
+            add_scan(session['user_id'], "Reverse Image Intel", orig_filename, res['threat_level'], res['threat_score'], summary, details)
+            
+            return jsonify(res)
+        except Exception as e:
+            return jsonify({"error": f"Image intelligence execution failed: {str(e)}"}), 500
+            
+    return jsonify({"error": "File type not supported. Allowed formats: PNG, JPG, JPEG, WEBP"}), 400
 
 @app.route('/api/report/<int:scan_id>', methods=['GET'])
 @login_required
