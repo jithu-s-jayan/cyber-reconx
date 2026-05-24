@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Cyber ReconX — Secure Access Terminal</title>
+    <title>Cyber ReconX — Login</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="/static/css/style.css?v=2.0.8">
     <style>
@@ -182,28 +182,28 @@
         <div class="glass-card auth-card slide-up">
             <div class="auth-header">
                 <a href="/" class="auth-logo"><i class="fa-solid fa-shield-halved"></i> Cyber ReconX</a>
-                <p class="auth-subtitle" id="auth-sub-text">Establish secure operator shell access.</p>
+                <p class="auth-subtitle" id="auth-sub-text">Sign in to your account to continue.</p>
             </div>
 
             <!-- Mode Toggle Tabs -->
             <div class="auth-tabs">
-                <button type="button" class="auth-tab active" id="tab-login" onclick="toggleAuthMode('login')"><i class="fa-solid fa-key"></i> ACCESS SHELL</button>
-                <button type="button" class="auth-tab" id="tab-register" onclick="toggleAuthMode('register')"><i class="fa-solid fa-user-plus"></i> ENLIST DECK</button>
+                <button type="button" class="auth-tab active" id="tab-login" onclick="toggleAuthMode('login')"><i class="fa-solid fa-key"></i> SIGN IN</button>
+                <button type="button" class="auth-tab" id="tab-register" onclick="toggleAuthMode('register')"><i class="fa-solid fa-user-plus"></i> SIGN UP</button>
             </div>
             
             <button type="button" class="social-btn" id="btn-google-sso">
                 <img src="https://upload.wikimedia.org/wikipedia/commons/5/53/Google_%22G%22_Logo.svg" alt="Google" width="18" height="18">
-                AUTHENTICATE WITH GOOGLE
+                CONTINUE WITH GOOGLE
             </button>
             
-            <div class="divider" id="auth-divider">or authenticate via keys</div>
+            <div class="divider" id="auth-divider">or continue with email</div>
             
             <!-- Dynamic Auth Form -->
             <form id="secure-auth-form">
                 <!-- Registration Specific Name Field (Hidden by default) -->
                 <div class="input-group hidden" id="group-name">
                     <i class="fa-solid fa-id-card form-icon"></i>
-                    <input type="text" id="auth-name-input" class="form-control has-icon" placeholder="Operator Name">
+                    <input type="text" id="auth-name-input" class="form-control has-icon" placeholder="Full Name">
                 </div>
 
                 <div class="input-group">
@@ -213,17 +213,17 @@
 
                 <div class="input-group">
                     <i class="fa-solid fa-lock form-icon"></i>
-                    <input type="password" id="auth-password-input" class="form-control has-icon" placeholder="Biometric Key / Password" required>
+                    <input type="password" id="auth-password-input" class="form-control has-icon" placeholder="Password" required>
                 </div>
 
                 <div class="flex-between mb-3" id="login-extra" style="font-size: 0.82rem; margin-top: -8px; margin-bottom: 20px;">
                     <label style="display:flex; align-items:center; gap:8px; cursor:pointer; color:var(--text-secondary);">
-                        <input type="checkbox" id="auth-remember" checked style="accent-color: var(--primary-cyan);"> Remember Shell Session
+                        <input type="checkbox" id="auth-remember" checked style="accent-color: var(--primary-cyan);"> Remember me
                     </label>
-                    <a href="#" class="text-cyan" style="text-decoration:none; font-weight: 500;">Forgot Key?</a>
+                    <a href="#" class="text-cyan" style="text-decoration:none; font-weight: 500;">Forgot password?</a>
                 </div>
 
-                <button type="submit" class="btn btn-primary auth-submit" id="btn-submit"><i class="fa-solid fa-right-to-bracket"></i> Authenticate Session</button>
+                <button type="submit" class="btn btn-primary auth-submit" id="btn-submit"><i class="fa-solid fa-right-to-bracket"></i> Sign In</button>
             </form>
 
             <!-- Verification Progress Log -->
@@ -239,6 +239,11 @@
     <script src="/static/js/firebase-config.js"></script>
 
     <script>
+        // Initialize Firebase
+        if (typeof window.FIREBASE_CONFIG !== 'undefined') {
+            firebase.initializeApp(window.FIREBASE_CONFIG);
+        }
+        
         let currentMode = 'login'; // 'login' or 'register'
 
         function toggleAuthMode(mode) {
@@ -259,18 +264,18 @@
                 groupName.classList.add('hidden');
                 nameInput.removeAttribute('required');
                 loginExtra.style.display = 'flex';
-                btnSubmit.innerHTML = '<i class="fa-solid fa-right-to-bracket"></i> Authenticate Session';
-                subText.textContent = 'Establish secure operator shell access.';
-                divider.textContent = 'or authenticate via keys';
+                btnSubmit.innerHTML = '<i class="fa-solid fa-right-to-bracket"></i> Sign In';
+                subText.innerText = 'Sign in to your account to continue.';
+                divider.innerText = 'or continue with email';
             } else {
-                tabLogin.classList.remove('active');
                 tabRegister.classList.add('active');
+                tabLogin.classList.remove('active');
                 groupName.classList.remove('hidden');
                 nameInput.setAttribute('required', 'true');
-                loginExtra.style.display = 'none';
-                btnSubmit.innerHTML = '<i class="fa-solid fa-user-plus"></i> Enlist Operator';
-                subText.textContent = 'Register a new operator identity in database nodes.';
-                divider.textContent = 'or register via identity partner';
+                loginExtra.classList.add('hidden');
+                btnSubmit.innerHTML = '<i class="fa-solid fa-user-check"></i> Sign Up';
+                subText.innerText = 'Create an account to access the platform.';
+                divider.innerText = 'or sign up with email';
             }
         }
 
