@@ -58,7 +58,7 @@ def analyze_ssl(domain):
         context.check_hostname = False
         context.verify_mode = ssl.CERT_NONE
         
-        with socket.create_connection((domain, 443), timeout=3) as sock:
+        with socket.create_connection((domain, 443), timeout=10) as sock:
             with context.wrap_socket(sock, server_hostname=domain) as ssock:
                 cert_bin = ssock.getpeercert(True)
                 x509 = OpenSSL.crypto.load_certificate(OpenSSL.crypto.FILETYPE_ASN1, cert_bin)

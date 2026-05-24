@@ -603,7 +603,7 @@ def run_reverse_image_investigation(image_path, filename):
                 "timestamp": time.strftime('%Y-%m-%d'),
                 "risk": "Low",
                 "summary": summary,
-                "recon_suggestion": recon,
+                "recon_suggestion": f"Gemini Vision Intel: {visual_description} | {recon}" if visual_description and i == 0 else recon,
             })
     else:
         # Fallback: Simulate Real OSINT Results with Exact Source tracking using Base64 thumbnail
@@ -625,7 +625,7 @@ def run_reverse_image_investigation(image_path, filename):
             "timestamp": time.strftime('%Y-%m-%d'),
             "risk": "Medium",
             "summary": "Original source node identified. Exact visual fingerprint matched against web index.",
-            "recon_suggestion": f"Click 'Visit Source Link' to analyze the exact match cluster and original web source on Google Lens."
+            "recon_suggestion": f"Gemini Vision Intel: {visual_description}" if visual_description else f"Click 'Visit Source Link' to analyze the exact match cluster and original web source on Google Lens."
         })
         matches.append({
             "category": "Most Similar Match",

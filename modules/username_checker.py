@@ -336,7 +336,12 @@ def resolve_handles_for_real_name(real_name):
 def _check_one(platform_name, url_template, verify_fn, username):
     url = url_template.format(username)
     try:
-        res = SESSION.get(url, timeout=8, allow_redirects=True)
+        # Use a fresh, vanilla request for Instagram to avoid triggering login redirects via Session headers
+        if platform_name == "Instagram":
+            res = requests.get(url, timeout=8, allow_redirects=True, headers={'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'})
+        else:
+            res = SESSION.get(url, timeout=8, allow_redirects=True)
+            
         found = verify_fn(username, res)
         return platform_name, "Found" if found else "Not Found", url if found else "#", username
     except requests.exceptions.Timeout:
