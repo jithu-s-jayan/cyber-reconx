@@ -42,11 +42,18 @@ def _verify_reddit(username, res):
     )
 
 def _verify_instagram(username, res):
-    # Both real and 404 pages return HTTP 200.
-    # Real profiles embed the username string in the page; 404s do not.
-    if res.status_code != 200:
+    # Instagram often redirects to login or returns 429 for datacenter IPs.
+    # We parse the HTML title tag instead of status code.
+    if res.status_code == 404:
         return False
-    return username.lower().encode() in res.content.lower()
+    title_match = re.search(r'<title>(.*?)</title>', res.content.decode('utf-8', errors='ignore'), re.IGNORECASE)
+    if title_match:
+        title = title_match.group(1).lower()
+        if username.lower() in title or "photos and videos" in title:
+            return True
+        if title == "instagram":
+            return False
+    return False
 
 def _verify_twitter(username, res):
     if res.status_code != 200:
@@ -370,6 +377,17 @@ def search_username(raw_input):
                     "username_checked": "",
                     "resolved_handle": None,
                 }
+            
+            # Short-circuit fragile HTTP ping for Instagram if Wikidata already verified the handle
+            if platform_name == "Instagram":
+                return {
+                    "platform": platform_name,
+                    "status": "Found",
+                    "link": url_template.format(handle),
+                    "username_checked": handle,
+                    "resolved_handle": handle,
+                }
+
             pname, status, link, _ = _check_one(
                 platform_name, url_template, verify_fn, handle
             )

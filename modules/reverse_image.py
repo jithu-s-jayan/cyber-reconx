@@ -363,14 +363,23 @@ def analyze_image_with_gemini(image_path):
                 "Identify the specific person, landmark, or main entity in this image. "
                 "If it is a famous person, return ONLY their exact full name (e.g., 'A. P. J. Abdul Kalam', 'Narendra Modi'). "
                 "If it is a landmark or object, return ONLY its exact name. "
-                "If you cannot identify a specific entity or person, or if it's just a generic photo, return ONLY the word: UNKNOWN."
+                "If you cannot identify a specific entity or person, or if it's just a generic photo, return ONLY the word: UNKNOWN. "
+                "After the name, add a pipe character '|', followed by a rich, 1-sentence visual description of what is happening in the photo."
             )
             response = model.generate_content([prompt, img])
             text = response.text.strip()
             
-            if "UNKNOWN" in text.upper() or len(text) > 40:
-                return None
-            return text.replace('"', '').replace('.', '').strip()
+            if "|" in text:
+                parts = text.split("|", 1)
+                name_part = parts[0].replace('"', '').replace('.', '').strip()
+                desc_part = parts[1].strip()
+                if "UNKNOWN" in name_part.upper():
+                    return None
+                return (name_part, desc_part)
+            else:
+                if "UNKNOWN" in text.upper() or len(text) > 40:
+                    return None
+                return (text.replace('"', '').replace('.', '').strip(), None)
     except Exception as e:
         print(f"[GEMINI_VISION] Error: {e}")
         return None
@@ -441,12 +450,18 @@ def run_reverse_image_investigation(image_path, filename):
 
     # ── Step 1: AI Vision Analysis (Bypass Anti-Bot) ──
     # 1. Use Gemini to truly identify the person/object in the photo
-    search_keywords = analyze_image_with_gemini(image_path)
+    gemini_result = analyze_image_with_gemini(image_path)
+    visual_description = None
     
-    # 2. Fallback to filename if Gemini fails or isn't configured
-    if not search_keywords:
-        clean_name = os.path.splitext(filename)[0]
-        search_keywords = re.sub(r'[-_\s\d]+', ' ', clean_name).strip()
+    if gemini_result and isinstance(gemini_result, tuple):
+        search_keywords, visual_description = gemini_result
+    else:
+        search_keywords = gemini_result
+
+    # 2. Extract Fallback Keywords from original filename if Gemini fails
+    if not search_keywords or len(search_keywords) < 3:
+        if filename and '.' in filename:
+            search_keywords = filename.rsplit('.', 1)[0].replace('_', ' ').replace('-', ' ').strip()
         if not search_keywords or len(search_keywords) < 3:
             search_keywords = "visual asset"
 
@@ -523,6 +538,15 @@ def run_reverse_image_investigation(image_path, filename):
     threat_score = 15
     threat_level = "Low"
     threat_details = []
+
+    recon_suggestion = "Ensure operational security by analyzing asset distribution traces."
+    if meta["gps_latitude"] is not None:
+        recon_suggestion = "GPS metadata confirmed. Coordinate location traced successfully."
+    elif visual_matches:
+        recon_suggestion = "Digital footprint identified. Cross-reference visual matches to determine source."
+        
+    if visual_description:
+        recon_suggestion = f"Gemini Vision Intel: {visual_description} | {recon_suggestion}"
 
     if meta["gps_latitude"] is not None:
         threat_score += 45

@@ -316,7 +316,13 @@ def api_ip():
     if "error" in res:
         return jsonify(res), 400
         
-    summary = f"Mapped IP Geolocation for {res['ip']} to {res['city']}, {res['country']}. ISP: {res['isp']}."
+    flags = []
+    if res.get('is_proxy'): flags.append("VPN/Proxy")
+    if res.get('is_hosting'): flags.append("Datacenter")
+    if res.get('is_mobile'): flags.append("Cellular")
+    flag_str = f" [{', '.join(flags)}]" if flags else ""
+        
+    summary = f"Mapped IP Geolocation for {res['ip']} to {res['city']}, {res['country']}. ISP: {res['isp']}.{flag_str}"
     details = json.dumps(res)
     add_scan(session['user_id'], "IP Intelligence", target, res['threat_level'], res['threat_score'], summary, details)
     

@@ -9,8 +9,8 @@ def analyze_ip(ip_address):
         return {"error": "Invalid host or IP address format"}
         
     try:
-        # Use a public geolocation API
-        response = requests.get(f"http://ip-api.com/json/{ip}?fields=status,message,country,countryCode,regionName,city,zip,lat,lon,timezone,isp,org,as,query", timeout=5)
+        # Use a public geolocation API with advanced security fields
+        response = requests.get(f"http://ip-api.com/json/{ip}?fields=status,message,country,countryCode,regionName,city,zip,lat,lon,timezone,isp,org,as,query,proxy,hosting,mobile", timeout=5)
         if response.status_code == 200:
             data = response.json()
             if data.get("status") == "success":
@@ -18,11 +18,23 @@ def analyze_ip(ip_address):
                 threat_score = 15
                 threat_level = "Low"
                 
+                is_proxy = data.get("proxy", False)
+                is_hosting = data.get("hosting", False)
+                is_mobile = data.get("mobile", False)
+                
                 # Check for hosting / datacenter vs residential
-                is_hosting = "hosting" in data.get("org", "").lower() or "datacenter" in data.get("isp", "").lower()
-                if is_hosting:
+                if is_proxy:
+                    threat_score += 40
+                    threat_level = "High"
+                elif is_hosting:
                     threat_score += 15
+                    threat_level = "Medium"
+                elif is_mobile:
+                    threat_score -= 5  # Mobile IPs are usually safe
                     
+                if threat_score > 100: threat_score = 100
+                if threat_score < 0: threat_score = 0
+                
                 # Threat summary logs
                 return {
                     "ip": data.get("query"),
@@ -36,6 +48,9 @@ def analyze_ip(ip_address):
                     "timezone": data.get("timezone", "UTC"),
                     "isp": data.get("isp", "Unknown"),
                     "asn": data.get("as", "Unknown"),
+                    "is_proxy": is_proxy,
+                    "is_hosting": is_hosting,
+                    "is_mobile": is_mobile,
                     "threat_score": threat_score,
                     "threat_level": threat_level,
                     "rdns": get_rdns(ip)
@@ -57,6 +72,9 @@ def analyze_ip(ip_address):
         "timezone": "UTC",
         "isp": "Local / Offline Network",
         "asn": "Private AS",
+        "is_proxy": False,
+        "is_hosting": False,
+        "is_mobile": False,
         "threat_score": 0,
         "threat_level": "Info",
         "rdns": get_rdns(ip)
