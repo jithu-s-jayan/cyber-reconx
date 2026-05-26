@@ -273,6 +273,35 @@ function setupFormHandlers() {
         });
     }
 
+    // Phone Intel
+    const phoneForm = document.getElementById("phone-recon-form");
+    if (phoneForm) {
+        phoneForm.addEventListener("submit", e => {
+            e.preventDefault();
+            const target = document.getElementById("phone-target-input").value.trim();
+            const loader = document.getElementById("phone-loader");
+            const area   = document.getElementById("phone-results-area");
+
+            loader.classList.remove("hidden");
+            area.classList.add("hidden");
+
+            fetch('/api/phone', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ target })
+            })
+            .then(res => res.json())
+            .then(data => {
+                loader.classList.add("hidden");
+                if (data.error) { alert("Error: " + data.error); return; }
+                renderPhoneResults(data);
+                area.classList.remove("hidden");
+                loadDashboardStats();
+            })
+            .catch(() => { loader.classList.add("hidden"); alert("Connection error."); });
+        });
+    }
+
     // Username / Identity
     const usernameForm = document.getElementById("username-recon-form");
     if (usernameForm) {
@@ -692,6 +721,36 @@ function renderIpResults(data) {
     const score = document.getElementById("res-ip-score");
     if (badge) { badge.textContent = data.threat_level || "LOW"; setBadgeColor(badge, data.threat_level); }
     if (score) score.textContent = (data.threat_score || 0) + "%";
+}
+
+function renderPhoneResults(data) {
+    setText("res-phone-number",  data.formatted || "-");
+    setText("res-phone-carrier", data.carrier || "Unknown Network");
+    setText("res-phone-line",    data.line_type || "Unknown Type");
+    setText("res-phone-location",data.location || "Unknown Location");
+    setText("res-phone-country-code", data.country_code || "-");
+    setText("res-phone-network", data.carrier || "Unknown Network");
+    setText("res-phone-timezone",data.timezones || "-");
+
+    const badge = document.getElementById("res-phone-badge");
+    const score = document.getElementById("res-phone-score");
+    if (badge) { badge.textContent = data.threat_level || "LOW"; setBadgeColor(badge, data.threat_level); }
+    if (score) score.textContent = (data.threat_score || 0) + "%";
+
+    const warningsArea = document.getElementById("phone-warnings-area");
+    const warningsList = document.getElementById("res-phone-warnings");
+    warningsList.innerHTML = "";
+    if (data.warnings && data.warnings.length > 0) {
+        warningsArea.classList.remove("hidden");
+        data.warnings.forEach(w => {
+            const li = document.createElement("li");
+            li.textContent = w;
+            li.style.marginBottom = "5px";
+            warningsList.appendChild(li);
+        });
+    } else {
+        warningsArea.classList.add("hidden");
+    }
 }
 
 function renderImageResults(data) {

@@ -35,6 +35,7 @@
                 <a class="nav-item" data-section="image"><i class="fa-solid fa-image"></i> Image Intel</a>
                 <a class="nav-item" data-section="network"><i class="fa-solid fa-network-wired"></i> Port Sweeper</a>
                 <a class="nav-item" data-section="ip-intel"><i class="fa-solid fa-map-location-dot"></i> IP Geolocation</a>
+                <a class="nav-item" data-section="phone-intel"><i class="fa-solid fa-phone"></i> Phone Intel</a>
                 
                 <div class="nav-label">Records</div>
                 <a class="nav-item" data-section="history"><i class="fa-solid fa-clock-rotate-left"></i> History Logs</a>
@@ -519,6 +520,60 @@
                     </div>
                 </section>
                 
+                <!-- SECTION: PHONE INTEL -->
+                <section id="section-phone-intel" class="tab-content">
+                    <div class="tool-header">
+                        <h2><i class="fa-solid fa-phone text-gradient"></i> Phone Intel</h2>
+                        <p class="text-muted">Extract geographic, carrier, and line-type metadata from global phone numbers.</p>
+                    </div>
+                    
+                    <div class="glass-card panel">
+                        <form id="phone-recon-form">
+                            <div class="input-group">
+                                <i class="fa-solid fa-phone form-icon"></i>
+                                <input type="text" id="phone-target-input" class="form-control has-icon" placeholder="Enter phone number with country code (e.g. +91 9876543210)" required>
+                            </div>
+                            <button type="submit" class="btn btn-primary"><i class="fa-solid fa-search"></i> Analyze Number</button>
+                        </form>
+                    </div>
+                    
+                    <div id="phone-loader" class="glass-card panel text-center mt-4 hidden">
+                        <div class="spinner mx-auto mb-3" style="margin: 0 auto;"></div>
+                        <h4>Tracing Number...</h4>
+                    </div>
+                    
+                    <div id="phone-results-area" class="glass-card mt-4 hidden p-0" style="padding:0; overflow:hidden;">
+                        <div class="results-header">
+                            <div>
+                                <h3 id="res-phone-number" style="font-size:1.5rem; margin-bottom:8px;">+1 415-555-2671</h3>
+                                <div class="badge badge-info" id="res-phone-carrier">-</div>
+                                <div class="badge badge-warning" id="res-phone-line" style="margin-left:8px;">-</div>
+                            </div>
+                            <div style="text-align:right;">
+                                <div class="badge badge-success" id="res-phone-badge">LOW</div>
+                                <div style="font-size:2rem; font-weight:800; color:var(--text-primary); margin-top:4px;" id="res-phone-score">0%</div>
+                            </div>
+                        </div>
+                        <div class="grid-detail" style="grid-template-columns: 1fr 1fr;">
+                            <div>
+                                <div class="detail-group"><div class="detail-label">Location / Region</div><div class="detail-value" id="res-phone-location">-</div></div>
+                                <div class="detail-group"><div class="detail-label">Country Code</div><div class="detail-value text-gradient" id="res-phone-country-code">-</div></div>
+                            </div>
+                            <div>
+                                <div class="detail-group"><div class="detail-label">Network Provider</div><div class="detail-value" id="res-phone-network">-</div></div>
+                                <div class="detail-group"><div class="detail-label">Timezone</div><div class="detail-value mono-text" id="res-phone-timezone">-</div></div>
+                            </div>
+                        </div>
+                        
+                        <!-- Warnings Box -->
+                        <div id="phone-warnings-area" class="hidden" style="padding: 15px 25px; background: rgba(255,50,50,0.1); border-top: 1px solid rgba(255,50,50,0.2);">
+                            <h4 style="color: #ff5555; margin-bottom: 8px; font-size: 0.9rem;"><i class="fa-solid fa-triangle-exclamation"></i> Security Warnings</h4>
+                            <ul id="res-phone-warnings" style="margin:0; padding-left:20px; font-size:0.85rem; color:var(--text-secondary);">
+                            </ul>
+                        </div>
+                    </div>
+                </section>
+
                 <!-- SECTION: HISTORY -->
                 <section id="section-history" class="tab-content">
                     <div class="tool-header">

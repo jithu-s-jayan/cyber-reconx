@@ -17,6 +17,7 @@ from modules.network_scanner import run_port_scan
 from modules.ip_analyzer import analyze_ip
 from modules.report_generator import generate_pdf_report
 from modules.reverse_image import run_reverse_image_investigation
+from modules.phone_analyzer import run_phone_recon
 import uuid
 import time
 
@@ -325,6 +326,24 @@ def api_ip():
     summary = f"Mapped IP Geolocation for {res['ip']} to {res['city']}, {res['country']}. ISP: {res['isp']}.{flag_str}"
     details = json.dumps(res)
     add_scan(session['user_id'], "IP Intelligence", target, res['threat_level'], res['threat_score'], summary, details)
+    
+    return jsonify(res)
+
+@app.route('/api/phone', methods=['POST'])
+@login_required
+def api_phone():
+    target = request.json.get('target', '').strip()
+    if not target:
+        return jsonify({"error": "No phone number provided"}), 400
+        
+    res = run_phone_recon(target)
+    
+    if res.get('valid') is False:
+        return jsonify(res), 400
+        
+    summary = f"Phone Intel: {res['formatted']} ({res['location']} - {res['carrier']}). Line: {res['line_type']}."
+    details = json.dumps(res)
+    add_scan(session['user_id'], "Phone Intel", res['formatted'], res['threat_level'], res['threat_score'], summary, details)
     
     return jsonify(res)
 
