@@ -79,6 +79,15 @@ def run_phone_recon(phone_number):
         if threat_score >= 60:
             threat_level = "High"
 
+        # Generate OSINT Links
+        clean_number = f"+{parsed_number.country_code}{parsed_number.national_number}"
+        links = {
+            "google_dork": f"https://www.google.com/search?q=%22{clean_number}%22+OR+%22{intl_format}%22",
+            "whatsapp": f"https://wa.me/{parsed_number.country_code}{parsed_number.national_number}",
+            "telegram": f"https://t.me/{clean_number}",
+            "truecaller": f"https://www.truecaller.com/search/{str(parsed_number.country_code)}/{parsed_number.national_number}"
+        }
+
         return {
             "valid": True,
             "phone_number": e164_format,
@@ -91,6 +100,7 @@ def run_phone_recon(phone_number):
             "threat_score": min(threat_score, 100),
             "threat_level": threat_level,
             "warnings": warnings,
+            "links": links,
             "timestamp": datetime.now().strftime('%Y-%m-%d %H:%M:%S')
         }
         

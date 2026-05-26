@@ -751,6 +751,17 @@ function renderPhoneResults(data) {
     } else {
         warningsArea.classList.add("hidden");
     }
+
+    // OSINT Links
+    const linksArea = document.getElementById("phone-osint-links-area");
+    if (data.links) {
+        linksArea.classList.remove("hidden");
+        document.getElementById("btn-phone-google").href = data.links.google_dork || "#";
+        document.getElementById("btn-phone-whatsapp").href = data.links.whatsapp || "#";
+        document.getElementById("btn-phone-truecaller").href = data.links.truecaller || "#";
+    } else {
+        linksArea.classList.add("hidden");
+    }
 }
 
 function renderImageResults(data) {
