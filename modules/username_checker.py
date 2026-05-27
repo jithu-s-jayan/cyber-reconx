@@ -32,7 +32,18 @@ SESSION.headers.update({
 # -----------------------------------------------------------------------
 
 def _verify_github(username, res):
-    return res.status_code == 200 and b'"login"' in res.content
+    found = res.status_code == 200 and b'"login"' in res.content
+    last_active = None
+    if found:
+        try:
+            # Fetch public events to get the latest activity date
+            r = requests.get(f"https://api.github.com/users/{username}/events/public?per_page=1", timeout=5)
+            if r.status_code == 200 and r.json():
+                # Extract date from timestamp (e.g. 2026-05-24T19:09:41Z -> 2026-05-24)
+                last_active = r.json()[0]['created_at'].split('T')[0]
+        except:
+            pass
+    return found, last_active
 
 def _verify_reddit(username, res):
     return (
@@ -342,12 +353,18 @@ def _check_one(platform_name, url_template, verify_fn, username):
         else:
             res = SESSION.get(url, timeout=8, allow_redirects=True)
             
-        found = verify_fn(username, res)
-        return platform_name, "Found" if found else "Not Found", url if found else "#", username
+        result = verify_fn(username, res)
+        if isinstance(result, tuple):
+            found, last_active = result
+        else:
+            found = result
+            last_active = None
+            
+        return platform_name, "Found" if found else "Not Found", url if found else "#", username, last_active
     except requests.exceptions.Timeout:
-        return platform_name, "Timeout", "#", username
+        return platform_name, "Timeout", "#", username, None
     except Exception:
-        return platform_name, "Error", "#", username
+        return platform_name, "Error", "#", username, None
 
 
 # -----------------------------------------------------------------------
@@ -377,10 +394,11 @@ def search_username(raw_input):
             if not handle:
                 return {
                     "platform": platform_name,
-                    "status": "Not Found",
+                "status": "Not Found",
                     "link": "#",
                     "username_checked": "",
                     "resolved_handle": None,
+                    "last_active": None,
                 }
             
             # Short-circuit fragile HTTP ping for Instagram if Wikidata already verified the handle
@@ -391,9 +409,10 @@ def search_username(raw_input):
                     "link": url_template.format(handle),
                     "username_checked": handle,
                     "resolved_handle": handle,
+                    "last_active": None,
                 }
 
-            pname, status, link, _ = _check_one(
+            pname, status, link, _, last_active = _check_one(
                 platform_name, url_template, verify_fn, handle
             )
             return {
@@ -402,6 +421,7 @@ def search_username(raw_input):
                 "link": link,
                 "username_checked": handle,
                 "resolved_handle": handle,
+                "last_active": last_active,
             }
 
         with ThreadPoolExecutor(max_workers=8) as ex:
@@ -426,7 +446,7 @@ def search_username(raw_input):
                 for pname, tmpl, verify in PLATFORMS
             ]
             for f in as_completed(futures):
-                pname, status, link, uname = f.result()
+                pname, status, link, uname, last_active = f.result()
                 if status == "Found":
                     found_count += 1
                 results.append({
@@ -435,6 +455,7 @@ def search_username(raw_input):
                     "link": link,
                     "username_checked": uname,
                     "resolved_handle": uname,
+                    "last_active": last_active,
                 })
 
         display_username = username

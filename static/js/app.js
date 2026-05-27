@@ -659,12 +659,16 @@ function renderUsernameResults(data) {
             const linkHtml = isFound
                 ? `<a href="${r.link}" target="_blank" rel="noopener noreferrer" class="status-found"><i class="fa-solid fa-arrow-up-right-from-square"></i> View Profile</a>`
                 : `<span class="status-missing"><i class="fa-solid fa-xmark"></i> ${r.status}</span>`;
-
+            const lastActive = r.last_active ? `<span class="badge badge-info" style="font-size: 0.7rem; margin-top:4px; display:inline-block;">Last Active: ${r.last_active}</span>` : "";
+            
             list.innerHTML += `
                 <div class="glass-card profile-stat-card ${isFound ? 'card-found' : ''}">
-                    <div class="profile-card-left">
-                        <span class="profile-platform">${r.platform}</span>
-                        ${handle}
+                    <div class="profile-card-left" style="display:flex; flex-direction:column; align-items:flex-start;">
+                        <div>
+                            <span class="profile-platform">${r.platform}</span>
+                            ${handle}
+                        </div>
+                        ${lastActive}
                     </div>
                     <div class="profile-card-right">${linkHtml}</div>
                 </div>`;
