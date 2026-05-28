@@ -56,25 +56,26 @@ def _verify_instagram(username, res):
     # Instagram often redirects to login or returns 429 for datacenter IPs.
     # We parse the HTML title tag instead of status code.
     if res.status_code == 404:
-        return False
+        return False, None
     title_match = re.search(r'<title>(.*?)</title>', res.content.decode('utf-8', errors='ignore'), re.IGNORECASE)
     if title_match:
         title = title_match.group(1).lower()
         if username.lower() in title or "photos and videos" in title:
-            return True
+            return True, "Private"
         if title == "instagram":
-            return False
-    return False
+            return False, None
+    return False, None
 
 def _verify_twitter(username, res):
     if res.status_code != 200:
-        return False
+        return False, None
     c = res.content.lower()
-    return not any(m in c for m in [
+    found = not any(m in c for m in [
         b"this account doesn",
         b"caution: this account",
         b"user not found",
     ])
+    return found, "Private" if found else None
 
 def _verify_linkedin(username, res):
     return res.status_code == 200 and username.lower().encode() in res.content.lower()
@@ -409,7 +410,7 @@ def search_username(raw_input):
                     "link": url_template.format(handle),
                     "username_checked": handle,
                     "resolved_handle": handle,
-                    "last_active": None,
+                    "last_active": "Private",
                 }
 
             pname, status, link, _, last_active = _check_one(
