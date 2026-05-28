@@ -32,8 +32,10 @@ def analyze_ip(ip_address):
                 elif is_mobile:
                     threat_score -= 5  # Mobile IPs are usually safe
                     
-                if threat_score > 100: threat_score = 100
                 if threat_score < 0: threat_score = 0
+                
+                # Fetch Reverse IP domains (Passive DNS)
+                associated_domains = get_reverse_ip_domains(data.get("query"))
                 
                 # Threat summary logs
                 return {
@@ -53,7 +55,8 @@ def analyze_ip(ip_address):
                     "is_mobile": is_mobile,
                     "threat_score": threat_score,
                     "threat_level": threat_level,
-                    "rdns": get_rdns(ip)
+                    "rdns": get_rdns(ip),
+                    "associated_domains": associated_domains
                 }
             else:
                 return {"error": data.get("message", "IP Geolocation lookup failed")}
@@ -77,7 +80,8 @@ def analyze_ip(ip_address):
         "is_mobile": False,
         "threat_score": 0,
         "threat_level": "Info",
-        "rdns": get_rdns(ip)
+        "rdns": get_rdns(ip),
+        "associated_domains": []
     }
 
 def get_rdns(ip):
@@ -85,3 +89,16 @@ def get_rdns(ip):
         return socket.gethostbyaddr(ip)[0]
     except Exception:
         return "No reverse DNS record"
+
+def get_reverse_ip_domains(ip):
+    try:
+        res = requests.get(f"https://api.hackertarget.com/reverseiplookup/?q={ip}", timeout=5)
+        if res.status_code == 200:
+            text = res.text.strip()
+            if "API count exceeded" in text or "error" in text.lower() or "no dns a records found" in text.lower():
+                return []
+            domains = text.split('\\n')
+            return [d.strip() for d in domains if d.strip()][:20]
+        return []
+    except Exception:
+        return []

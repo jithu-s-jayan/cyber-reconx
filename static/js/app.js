@@ -748,6 +748,21 @@ function renderIpResults(data) {
     const score = document.getElementById("res-ip-score");
     if (badge) { badge.textContent = data.threat_level || "LOW"; setBadgeColor(badge, data.threat_level); }
     if (score) score.textContent = (data.threat_score || 0) + "%";
+
+    const domainsSection = document.getElementById("ip-domains-section");
+    const domainsList = document.getElementById("res-ip-domains-list");
+    
+    if (domainsSection && domainsList) {
+        if (data.associated_domains && data.associated_domains.length > 0) {
+            domainsSection.classList.remove("hidden");
+            domainsList.innerHTML = "";
+            data.associated_domains.forEach(d => {
+                domainsList.innerHTML += `<span class="badge" style="background: rgba(0,255,255,0.1); color: #00e5ff; border: 1px solid rgba(0,255,255,0.2); padding: 4px 8px; font-size: 0.75rem;"><i class="fa-solid fa-globe" style="margin-right:4px;"></i>${d}</span>`;
+            });
+        } else {
+            domainsSection.classList.add("hidden");
+        }
+    }
 }
 
 function renderPhoneResults(data) {
