@@ -736,13 +736,13 @@ function renderIpResults(data) {
     setText("res-ip-isp2",     data.isp || "-");
     setText("res-ip-country",  `${data.country || "-"} (${data.country_code || "?"})`);
     setText("res-ip-city",     `${data.region || "-"} / ${data.city || "-"}`);
-    setText("res-ip-zip",      data.postal || "-");
+    setText("res-ip-zip",      data.zip || "-");
     setText("res-ip-rdns",     data.rdns || "-");
     setText("res-ip-timezone", data.timezone || "-");
-    setText("res-ip-coords",   data.lat && data.lon ? `${data.lat}, ${data.lon}` : "-");
+    setText("res-ip-coords",   data.latitude && data.longitude ? `${data.latitude}, ${data.longitude}` : "-");
     setText("res-ip-asn",      data.asn || "-");
-    setText("res-ip-org",      data.org || "-");
-    setText("res-ip-vpn",      data.is_proxy ? "⚠ Proxy / VPN Detected" : "Clean — No proxy detected");
+    setText("res-ip-org",      data.isp || "-");
+    setText("res-ip-vpn",      data.is_proxy ? "\u26A0 Proxy / VPN Detected" : "Clean \u2014 No proxy detected");
 
     const badge = document.getElementById("res-ip-badge");
     const score = document.getElementById("res-ip-score");
