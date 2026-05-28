@@ -612,13 +612,28 @@ function renderDomainResults(data) {
     setText("res-domain-server", data.server || "Unknown");
     setText("res-domain-cms",    data.cms || "Not Detected");
     setText("res-domain-tech",   Array.isArray(data.technologies) ? data.technologies.join(", ") : (data.technologies || "-"));
-    setText("res-ssl-valid",     data.ssl_valid ? "✓ Valid" : "✗ Invalid / None");
-    setText("res-ssl-issuer",    data.ssl_issuer || "-");
-    setText("res-ssl-dates",     data.ssl_dates || "-");
-    setText("res-whois-registrar", data.registrar || "-");
-    setText("res-whois-created",   data.creation_date || "-");
-    setText("res-whois-expires",   data.expiration_date || "-");
-    setText("res-whois-emails",    Array.isArray(data.emails) ? data.emails.join(", ") : (data.emails || "None disclosed"));
+    
+    if (data.ssl) {
+        setText("res-ssl-valid",     data.ssl.valid ? "\u2714 Valid" : "\u274C Invalid / None");
+        setText("res-ssl-issuer",    data.ssl.issuer || "-");
+        setText("res-ssl-dates",     (data.ssl.valid_from && data.ssl.valid_until) ? `${data.ssl.valid_from} to ${data.ssl.valid_until}` : "-");
+    } else {
+        setText("res-ssl-valid",     "-");
+        setText("res-ssl-issuer",    "-");
+        setText("res-ssl-dates",     "-");
+    }
+
+    if (data.whois) {
+        setText("res-whois-registrar", data.whois.registrar || "-");
+        setText("res-whois-created",   data.whois.creation_date || "-");
+        setText("res-whois-expires",   data.whois.expiration_date || "-");
+        setText("res-whois-emails",    Array.isArray(data.whois.emails) ? data.whois.emails.join(", ") : (data.whois.emails || "None disclosed"));
+    } else {
+        setText("res-whois-registrar", "-");
+        setText("res-whois-created",   "-");
+        setText("res-whois-expires",   "-");
+        setText("res-whois-emails",    "-");
+    }
 
     const badge = document.getElementById("res-domain-badge");
     const score = document.getElementById("res-domain-score");
@@ -626,13 +641,13 @@ function renderDomainResults(data) {
     if (score) score.textContent = (data.threat_score || 0) + "%";
 
     const headersList = document.getElementById("res-headers-list");
-    if (headersList && data.security_headers) {
+    if (headersList && data.headers) {
         headersList.innerHTML = "";
-        data.security_headers.forEach(h => {
+        Object.entries(data.headers).forEach(([headerName, h]) => {
             headersList.innerHTML += `
                 <div class="header-pill ${h.present ? 'secure' : 'warning'}">
                     <div class="header-pill-left">
-                        <span class="header-pill-name">${h.header}</span>
+                        <span class="header-pill-name">${headerName}</span>
                         <span class="header-pill-desc">${h.description || ""}</span>
                     </div>
                     <span class="status-badge ${h.present ? 'secure' : 'warning'}">${h.present ? "ACTIVE" : "MISSING"}</span>
