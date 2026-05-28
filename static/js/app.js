@@ -678,9 +678,9 @@ function renderUsernameResults(data) {
             let lastActive = "";
             if (r.last_active) {
                 if (r.last_active === "Private") {
-                    lastActive = `<span class="badge" style="font-size: 0.7rem; margin-top:4px; display:inline-block; background:rgba(255,255,255,0.1); color:#aaa;"><i class="fa-solid fa-lock" style="margin-right:3px;"></i>Last Active: Private</span>`;
+                    lastActive = `<span class="badge" style="font-size: 0.65rem; margin-top:6px; display:inline-block; background:rgba(255,255,255,0.1); color:#aaa; white-space:nowrap; padding:3px 6px; border-radius:4px;"><i class="fa-solid fa-lock" style="margin-right:3px;"></i>Last Active: Private</span>`;
                 } else {
-                    lastActive = `<span class="badge badge-info" style="font-size: 0.7rem; margin-top:4px; display:inline-block;"><i class="fa-regular fa-clock" style="margin-right:3px;"></i>Last Active: ${r.last_active}</span>`;
+                    lastActive = `<span class="badge badge-info" style="font-size: 0.65rem; margin-top:6px; display:inline-block; white-space:nowrap; padding:3px 6px; border-radius:4px;"><i class="fa-regular fa-clock" style="margin-right:3px;"></i>Last Active: ${r.last_active}</span>`;
                 }
             }
             
