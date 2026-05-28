@@ -97,7 +97,7 @@ def get_reverse_ip_domains(ip):
             text = res.text.strip()
             if "API count exceeded" in text or "error" in text.lower() or "no dns a records found" in text.lower():
                 return []
-            domains = text.split('\\n')
+            domains = text.split('\n')
             return [d.strip() for d in domains if d.strip()][:20]
         return []
     except Exception:
